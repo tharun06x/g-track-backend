@@ -27,6 +27,5 @@ class Adminmain(BaseModel):
     password:str=Field(min_length=8,max_lenght=20)
 
 class Distributor(BaseModel):
-    email:EmailStr=Field(max_length=120)
+    distributor_id:str=Field(max_length=20)
     password:str=Field(min_length=8,max_lenght=20)
-
