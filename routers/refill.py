@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from auth import TokenPayload, get_current_user
 from database import get_db
 from datetime import datetime, UTC
 from typing import Annotated
 from models import Refill_request, Users
 import uuid
 from typing import Optional
-from auth import get_current_user
+
 
 router = APIRouter(prefix='/api/v1/refill')
 
@@ -17,8 +18,11 @@ router = APIRouter(prefix='/api/v1/refill')
 async def create_refill_request(
     user_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
 ):
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     request_id = uuid.uuid4().hex[:10]
 
     new_request = Refill_request(
@@ -44,8 +48,7 @@ async def approve_refill_request(
     request_id: str,
     distributor_id: str,
     action: str,  # "approved" or "rejected"
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ):
     if action not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail="Action must be 'approved' or 'rejected'")
@@ -82,7 +85,6 @@ async def approve_refill_request(
 async def get_user_refills(
     user_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
 ):
     result = await db.execute(
         select(Refill_request)
@@ -108,8 +110,7 @@ async def get_user_refills(
 async def get_distributor_refills(
     distributor_id: str,
     status: Optional[str] = None,  # filter: "pending", "approved", "rejected"
-    db: Annotated[AsyncSession, Depends(get_db)] = None,
-    current_user: Annotated[dict, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     query = (
         select(Refill_request)
@@ -140,8 +141,7 @@ async def get_distributor_refills(
 @router.get("/admin/all")
 async def get_all_refills(
     status: Optional[str] = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = None,
-    current_user: Annotated[dict, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None
 ):
     query = select(Refill_request)
     if status:

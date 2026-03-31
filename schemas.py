@@ -8,7 +8,7 @@ class Usermain(BaseModel):
 class UserCreate(Usermain):
     name:str=Field(min_length=1,max_length=50)
     consumer_number:str
-    mobile:str=Field(pattern=r"^\+?[1-9]\d[7-14]$")
+    mobile: str=Field(pattern=r"^\+?[1-9]\d{7,14}$")
     address:str=Field(min_length=10,max_length=120)
     state:str
     district:str

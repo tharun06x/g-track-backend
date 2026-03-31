@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from auth import TokenPayload, get_current_user
 from database import get_db
 from typing import Annotated, Optional
 from pydantic import BaseModel, Field
 from models import Users
-from auth import get_current_user
+
 
 router = APIRouter(prefix='/api/v1/settings')
 
@@ -23,8 +24,11 @@ class SettingsUpdate(BaseModel):
 async def get_settings(
     user_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
 ):
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     result = await db.execute(
         select(Users).where(Users.user_id == user_id)
     )
@@ -48,8 +52,11 @@ async def update_settings(
     user_id: str,
     updates: SettingsUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
 ):
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     result = await db.execute(
         select(Users).where(Users.user_id == user_id)
     )

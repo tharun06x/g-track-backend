@@ -1,47 +1,74 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
-from datetime import datetime, timedelta, UTC
-from dotenv import load_dotenv
+
 import jwt
-import bcrypt
-import os
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jwt import InvalidTokenError
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pwdlib import PasswordHash
 
-load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-to-a-real-secret")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+class AuthSettings(BaseSettings):
+    jwt_secret_key: str = "change-this-secret-in-env"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
 
-security = HTTPBearer()
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+settings = AuthSettings()
+password_hash = PasswordHash.recommended()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
+
+
+class TokenPayload(BaseModel):
+    sub: str
+    email: str
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return password_hash.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    return password_hash.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def create_access_token(
+    user_id: str,
+    email: str,
+    expires_delta: timedelta | None = None,
+) -> str:
+    expire = datetime.now(UTC) + (
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+    )
+    to_encode = {
+        "sub": user_id,
+        "email": email,
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> dict:
-    token = credentials.credentials
+def decode_access_token(token: str) -> TokenPayload:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("user_id")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+        return TokenPayload(sub=payload["sub"], email=payload["email"])
+    except (InvalidTokenError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> TokenPayload:
+    return decode_access_token(token)

@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime,Float,ForeignKey,String,DateTime,Boolean
+from sqlalchemy import DateTime,Float,ForeignKey,String,DateTime,Boolean,Integer
 from sqlalchemy.orm import Mapped,mapped_column,relationship
 from database import Base
 from datetime import UTC, datetime
@@ -16,6 +16,7 @@ class Users(Base):
     distributor_name:Mapped[str]=mapped_column(ForeignKey("distributor.name"),nullable=False)
     state:Mapped[str]=mapped_column(String(20),nullable=False)
     district:Mapped[str]=mapped_column(String(20),nullable=False)
+    gas:Mapped[int]=mapped_column(Integer,nullable=False,default=30)
     threshold_limit:Mapped[float]=mapped_column(Float,nullable=False,default=1.0)
     auto_delivery:Mapped[bool]=mapped_column(Boolean,nullable=False,default=False)
     reports:Mapped[list['Sensor_unit']]=relationship(back_populates='users')
@@ -38,7 +39,7 @@ class Alert_log(Base):
     __tablename__="alert_log"
     alert_id:Mapped[str]=mapped_column(String(20),index=True,primary_key=True)
     alert_type:Mapped[str]=mapped_column(String(20),nullable=False)
-    delivery_status:Mapped[bool]=mapped_column(bool,nullable=True)
+    delivery_status:Mapped[bool]=mapped_column(Boolean,nullable=True)
     time_stamp:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=lambda:datetime.now(UTC))
     user_id:Mapped[str]=mapped_column(ForeignKey("users.name"),nullable=False)
 
@@ -47,10 +48,10 @@ class Alert_log(Base):
 class Sensor_unit(Base):
     __tablename__="sensor_unit"
     sensor_id:Mapped[str]=mapped_column(String(20),primary_key=True,index=True)
-    current_weight:Mapped[float]=mapped_column(float,nullable=False)
-    connection_status:Mapped[bool]=mapped_column(bool,nullable=True)
+    current_weight:Mapped[float]=mapped_column(Float,nullable=False)
+    connection_status:Mapped[bool]=mapped_column(Boolean,nullable=True)
     date:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=lambda:datetime.now(UTC))
-    id:Mapped[str]=mapped_column(ForeignKey('users.id'),nullable=False)
+    id:Mapped[str]=mapped_column(ForeignKey('users.user_id'),nullable=False)
     user:Mapped[list['Users']]=relationship(back_populates='sensor_unit')
     users=relationship('Users')
 

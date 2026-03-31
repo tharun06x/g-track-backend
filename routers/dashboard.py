@@ -5,16 +5,14 @@ from database import get_db
 from datetime import date, timedelta
 from typing import Annotated
 from models import Sensor_unit
-from auth import get_current_user
+
 
 router = APIRouter(prefix='/api/v1/dashboard')
-
 
 @router.get("/summary")
 async def get_dashboard_summary(
     device_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[dict, Depends(get_current_user)],
 ):
     today = date.today()
     latest_query = (
@@ -35,7 +33,6 @@ async def get_dashboard_summary(
     today_result = await db.execute(today_usage_query)
     gas_used_today = today_result.scalar() or 0.0
 
-    # 3. Average daily usage over the last 30 days
     thirty_days_ago = today - timedelta(days=30)
 
     daily_sub = (
@@ -55,7 +52,6 @@ async def get_dashboard_summary(
     avg_result = await db.execute(avg_query)
     avg_daily_usage = avg_result.scalar() or 0.0
 
-    # 4. Predicted date the cylinder will be empty
     predicted_empty_date = None
     if avg_daily_usage > 0 and remaining_gas is not None:
         days_left = remaining_gas / avg_daily_usage
