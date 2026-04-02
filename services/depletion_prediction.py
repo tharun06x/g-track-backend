@@ -164,9 +164,16 @@ def generate_synthetic_lifecycle_records(
         device_id = f"SYNTH-{(idx % device_count) + 1}"
         t = device_clock[device_id]
 
-        start_weight = rng.uniform(28.0, 32.0)
+        # Keep start weights and base rates in realistic but learnable ranges.
+        start_weight = rng.uniform(29.0, 31.0)
         weight = start_weight
-        duration_days = rng.randint(18, 42)
+        threshold_weight = rng.uniform(1.2, 2.0)
+        base_daily_consumption = rng.uniform(0.7, 1.05)  # kg/day
+
+        # Lifestyle bias: morning/evening heavy households consume a bit more.
+        meal_bias = rng.uniform(0.95, 1.10)
+
+        duration_days = rng.randint(22, 40)
         step_hours = 3
         steps = max(1, int((duration_days * 24) / step_hours))
 
@@ -174,16 +181,22 @@ def generate_synthetic_lifecycle_records(
             hour = t.hour
             weekday = t.weekday()
 
-            base_use = rng.uniform(0.01, 0.05)  # kg per 3h
-            if hour in (6, 7, 8, 12, 13, 19, 20, 21):
-                base_use *= rng.uniform(1.6, 2.4)
-            if hour <= 4:
-                base_use *= rng.uniform(0.05, 0.25)
-            if weekday >= 5:
-                base_use *= rng.uniform(1.05, 1.2)
+            # Hour profile keeps temporal behavior realistic while preserving a stable daily mean.
+            hour_factor = 0.65
+            if hour in (6, 9, 12, 15, 18, 21):
+                hour_factor = 1.45
+            elif hour in (0, 3):
+                hour_factor = 0.15
 
-            use = max(base_use + rng.uniform(-0.01, 0.01), 0.002)
-            weight = max(weight - use, rng.uniform(1.0, 2.5))
+            weekend_factor = 1.08 if weekday >= 5 else 1.0
+            long_term_drift = rng.uniform(0.995, 1.005)
+
+            # Convert daily rate to 3-hour bucket and add small sensor/behavior noise.
+            use = (base_daily_consumption * meal_bias * hour_factor * weekend_factor * long_term_drift) / 8.0
+            use += rng.uniform(-0.006, 0.006)
+            use = max(use, 0.001)
+
+            weight = max(weight - use, threshold_weight)
 
             records.append(
                 {
@@ -194,8 +207,11 @@ def generate_synthetic_lifecycle_records(
             )
             t += timedelta(hours=step_hours)
 
+            if weight <= threshold_weight + 0.02:
+                break
+
         # Refill jump creates clear lifecycle boundary.
-        refill_weight = start_weight + rng.uniform(-0.5, 0.8)
+        refill_weight = rng.uniform(29.0, 31.0)
         records.append(
             {
                 "device_id": device_id,

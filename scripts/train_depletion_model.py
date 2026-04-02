@@ -14,7 +14,7 @@ from services.feature_pipeline import build_features
 
 
 def main() -> None:
-    synthetic_records = generate_synthetic_lifecycle_records(lifecycle_count=80, seed=11)
+    synthetic_records = generate_synthetic_lifecycle_records(lifecycle_count=100, seed=11)
     feature_rows = build_features(synthetic_records)
     training_df = build_training_dataset(feature_rows)
 
