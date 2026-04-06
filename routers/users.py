@@ -42,13 +42,15 @@ async def register_user(
     if payload.password != payload.retrypassword:
         raise HTTPException(status_code=400, detail="Passwords do not match")
 
-    existing_user_result = await db.execute(
-        select(Users).where(
-            (Users.email == payload.email)
-            | (Users.phone_no == payload.mobile)
-            | (Users.consumer_no == payload.consumer_number)
-        )
+    duplicate_filters = (
+        (Users.email == payload.email)
+        | (Users.phone_no == payload.mobile)
+        | (Users.consumer_no == payload.consumer_number)
     )
+    if payload.device_id:
+        duplicate_filters = duplicate_filters | (Users.device_id == payload.device_id)
+
+    existing_user_result = await db.execute(select(Users).where(duplicate_filters))
     existing_user = existing_user_result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(status_code=409, detail="User already exists")
@@ -71,6 +73,7 @@ async def register_user(
         distributor_name=payload.distributor,
         state=payload.state,
         district=payload.district,
+        device_id=payload.device_id,
     )
 
     db.add(user)
@@ -128,6 +131,7 @@ async def get_current_user_info(
         "user_id": user.user_id,
         "name": user.name,
         "email": user.email,
+        "device_id": user.device_id,
     }
 
 
@@ -161,6 +165,7 @@ async def list_users(
             "address": u.address,
             "state": u.state,
             "district": u.district,
+            "device_id": u.device_id,
             "distributor_id": u.distributor_name,
             "gas": u.gas,
             "threshold_limit": u.threshold_limit,
@@ -195,6 +200,7 @@ async def get_user(
         "address": user.address,
         "state": user.state,
         "district": user.district,
+        "device_id": user.device_id,
         "distributor_id": user.distributor_name,
         "gas": user.gas,
         "threshold_limit": user.threshold_limit,
@@ -231,6 +237,14 @@ async def update_user(
         user.phone_no = update.phone_no
     if update.address:
         user.address = update.address
+    if update.device_id is not None:
+        if update.device_id != user.device_id:
+            existing_device = await db.execute(
+                select(Users).where(Users.device_id == update.device_id)
+            )
+            if existing_device.scalar_one_or_none():
+                raise HTTPException(status_code=409, detail="Device ID already assigned")
+        user.device_id = update.device_id
     if update.threshold_limit is not None:
         user.threshold_limit = update.threshold_limit
     if update.auto_delivery is not None:
@@ -244,6 +258,7 @@ async def update_user(
         "name": user.name,
         "email": user.email,
         "phone_no": user.phone_no,
+        "device_id": user.device_id,
         "message": "User profile updated successfully",
     }
 

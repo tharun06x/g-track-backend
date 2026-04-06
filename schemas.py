@@ -12,6 +12,7 @@ class UserCreate(Usermain):
     address:str=Field(min_length=10,max_length=120)
     state:str
     district:str
+    device_id: str | None = Field(default=None, max_length=30)
     distributor:str
     retrypassword:str
 
@@ -21,6 +22,7 @@ class UserLogin(Usermain):
 class UserUpdate(BaseModel):
     name:str|None=Field(default=None,min_length=1,max_length=50)
     email:EmailStr|None=Field(max_length=120)
+    device_id: str | None = Field(default=None, max_length=30)
 
 class AdminBase(BaseModel):
     email: EmailStr = Field(max_length=120)
