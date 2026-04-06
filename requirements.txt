@@ -13,3 +13,4 @@ pydantic-settings
 pydantic[email]
 aiosmtplib
 email-validator
+asyncpg
