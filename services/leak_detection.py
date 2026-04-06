@@ -30,10 +30,10 @@ async def fire_alert_immediately(
         return None
 
     result = await db.execute(
-        select(Users.name).where(Users.user_id == user_id)
+        select(Users).where(Users.user_id == user_id)
     )
-    user_name = result.scalar_one_or_none()
-    if user_name is None:
+    user = result.scalar_one_or_none()
+    if user is None:
         return None
 
     alert_id = uuid.uuid4().hex[:20]
@@ -42,7 +42,7 @@ async def fire_alert_immediately(
         alert_type=f"gas_leak: rate={drop_rate:.6f}kg/s threshold={threshold:.6f}kg/s",
         delivery_status=False,
         time_stamp=datetime.now(UTC),
-        user_id=user_name,
+        user_id=user_id,
     )
     db.add(alert)
     return alert_id

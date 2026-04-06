@@ -9,9 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from models import Sensor_unit
+from models import Sensor_unit, Users
 from services.leak_detection import LEAK_THRESHOLD, compute_drop_rate, fire_alert_immediately
+from services.email_helper import EmailHelper
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/sensor")
 
@@ -56,10 +59,27 @@ async def ingest_sensor_reading(
             leak_detected = True
             alert_id = await fire_alert_immediately(
                 db=db,
-                user_id=previous.id,
+                user_id=previous.user_id,
                 drop_rate=current_drop_rate,
                 threshold=LEAK_THRESHOLD,
             )
+            
+            # Send leak detection alert email
+            if alert_id and previous.user_id:
+                user_result = await db.execute(
+                    select(Users).where(Users.user_id == previous.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                if user:
+                    email_sent = await EmailHelper.send_leak_detection_alert(
+                        email=user.email,
+                        name=user.name,
+                        drop_rate=current_drop_rate,
+                        threshold=LEAK_THRESHOLD
+                    )
+                    if not email_sent:
+                        logger.warning(f"Failed to send leak detection email to {user.email}")
+                        
 
     # Persist reading after leak check.
     if previous is None:
@@ -87,6 +107,28 @@ async def ingest_sensor_reading(
 
     await db.commit()
     await db.refresh(reading)
+
+    # Check if gas level is below threshold and send alert if needed
+    if reading.user_id:
+        user_result = await db.execute(
+            select(Users).where(Users.user_id == reading.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if user and payload.weight is not None:
+            # Convert weight percentage to 0-100 scale for threshold comparison
+            gas_percentage = payload.weight  # Assuming weight is already in percentage
+            
+            if gas_percentage <= user.threshold_limit:
+                # Send threshold alert email
+                email_sent = await EmailHelper.send_refill_reminder(
+                    email=user.email,
+                    name=user.name,
+                    gas_level=gas_percentage,
+                    threshold=user.threshold_limit
+                )
+                if not email_sent:
+                    logger.warning(f"Failed to send threshold alert email to {user.email}")
 
     return {
         "device_id": payload.device_id,

@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import Annotated
 from datetime import datetime, UTC
 
@@ -10,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import TokenPayload, get_current_user
 from database import get_db
 from models import Users
+from services.email_helper import EmailHelper
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/complaints")
 
@@ -26,6 +29,8 @@ class ComplaintCreate(BaseModel):
 class ComplaintUpdate(BaseModel):
     status: str
     remark: str = ""
+    consumer_email: EmailStr | None = None  # Optional - for sending status update emails
+    consumer_name: str | None = None  # Optional - for sending status update emails
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -46,8 +51,10 @@ async def create_complaint(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    complaint_id = f"CMP-{uuid.uuid4().hex[:8].upper()}"
+    
     new_complaint = {
-        "id": f"CMP-{uuid.uuid4().hex[:8].upper()}",
+        "id": complaint_id,
         "distributor_id": user.distributor_name,
         "date": datetime.now(UTC).isoformat(),
         "category": complaint.category,
@@ -58,6 +65,16 @@ async def create_complaint(
         "consumer_phone": complaint.consumer_phone,
         "remark": "",
     }
+
+    # Send complaint confirmation email
+    email_sent = await EmailHelper.send_complaint_confirmation(
+        email=complaint.consumer_email,
+        name=complaint.consumer_name,
+        complaint_id=complaint_id,
+        status="Open"
+    )
+    if not email_sent:
+        logger.warning(f"Failed to send complaint confirmation email to {complaint.consumer_email}")
 
     return {
         "complaint_id": new_complaint["id"],
@@ -139,6 +156,7 @@ async def update_complaint(
 ):
     """
     Update complaint status and remark (typically by distributor/admin).
+    Optionally send status update email if consumer_email and consumer_name are provided.
     """
     allowed_statuses = ["Open", "In Progress", "Resolved", "Closed"]
     
@@ -147,6 +165,18 @@ async def update_complaint(
             status_code=400,
             detail=f"Invalid status. Must be one of: {', '.join(allowed_statuses)}"
         )
+
+    # Send status update email if consumer info is provided
+    if update.consumer_email and update.consumer_name:
+        email_sent = await EmailHelper.send_complaint_status_update(
+            email=update.consumer_email,
+            name=update.consumer_name,
+            complaint_id=complaint_id,
+            status=update.status,
+            remark=update.remark
+        )
+        if not email_sent:
+            logger.warning(f"Failed to send complaint status update email to {update.consumer_email}")
 
     return {
         "complaint_id": complaint_id,

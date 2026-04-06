@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +17,9 @@ from auth import (
 from database import get_db
 from models import Distributor, Users
 from schemas import UserCreate
+from services.email_helper import EmailHelper
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix='/api/v1/users')
@@ -79,6 +83,16 @@ async def register_user(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Send welcome email to new user
+    email_sent = await EmailHelper.send_welcome_email(
+        email=user.email,
+        name=user.name
+    )
+    
+    if not email_sent:
+        # Log warning but don't fail registration - user account is created successfully
+        logger.warning(f"Failed to send welcome email to {user.email} for new user {user.user_id}")
 
     access_token = create_access_token(user_id=user.user_id, email=user.email, role="user")
 

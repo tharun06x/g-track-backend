@@ -16,24 +16,17 @@ class EmailHelper:
     """Helper class for common email operations"""
 
     @staticmethod
-    async def send_welcome_email(email: EmailStr, name: str, password: str) -> bool:
+    async def send_welcome_email(email: EmailStr, name: str, password: str = None) -> bool:
         """
-        Send welcome email to new user
+        Send formal welcome email to new user
         
         Args:
             email: User email
             name: User name
-            password: Temporary password
+            password: Temporary password (deprecated - not sent to user anymore)
             
         Returns:
             True if sent successfully
-            
-        Example:
-            await EmailHelper.send_welcome_email(
-                email="user@example.com",
-                name="John Doe",
-                password="temp_password"
-            )
         """
         email_service = get_email_service()
         return await email_service.send_welcome_email(email, name, password)
@@ -56,14 +49,6 @@ class EmailHelper:
             
         Returns:
             True if sent successfully
-            
-        Example:
-            await EmailHelper.send_complaint_confirmation(
-                email="user@example.com",
-                name="John Doe",
-                complaint_id="COMP-2024-001",
-                status="submitted"
-            )
         """
         email_service = get_email_service()
         return await email_service.send_complaint_confirmation(email, name, complaint_id, status)
@@ -76,7 +61,7 @@ class EmailHelper:
         threshold: float
     ) -> bool:
         """
-        Send gas refill reminder email
+        Send gas refill reminder email when gas level falls below threshold
         
         Args:
             email: User email
@@ -86,17 +71,97 @@ class EmailHelper:
             
         Returns:
             True if sent successfully
-            
-        Example:
-            await EmailHelper.send_refill_reminder(
-                email="user@example.com",
-                name="John Doe",
-                gas_level=15.5,
-                threshold=20.0
-            )
         """
         email_service = get_email_service()
         return await email_service.send_refill_reminder(email, name, gas_level, threshold)
+
+    @staticmethod
+    async def send_leak_detection_alert(
+        email: EmailStr,
+        name: str,
+        drop_rate: float,
+        threshold: float
+    ) -> bool:
+        """
+        Send gas leak detection alert email
+        
+        Args:
+            email: User email
+            name: User name
+            drop_rate: Current gas drop rate (kg/s)
+            threshold: Alert threshold (kg/s)
+            
+        Returns:
+            True if sent successfully
+        """
+        email_service = get_email_service()
+        return await email_service.send_leak_detection_alert(email, name, drop_rate, threshold)
+
+    @staticmethod
+    async def send_refill_approval(
+        email: EmailStr,
+        name: str,
+        request_id: str
+    ) -> bool:
+        """
+        Send refill request approval confirmation
+        
+        Args:
+            email: User email
+            name: User name
+            request_id: Refill request ID
+            
+        Returns:
+            True if sent successfully
+        """
+        email_service = get_email_service()
+        return await email_service.send_refill_approval(email, name, request_id)
+
+    @staticmethod
+    async def send_refill_rejection(
+        email: EmailStr,
+        name: str,
+        request_id: str,
+        reason: str = ""
+    ) -> bool:
+        """
+        Send refill request rejection notification
+        
+        Args:
+            email: User email
+            name: User name
+            request_id: Refill request ID
+            reason: Reason for rejection (optional)
+            
+        Returns:
+            True if sent successfully
+        """
+        email_service = get_email_service()
+        return await email_service.send_refill_rejection(email, name, request_id, reason)
+
+    @staticmethod
+    async def send_complaint_status_update(
+        email: EmailStr,
+        name: str,
+        complaint_id: str,
+        status: str,
+        remark: str = ""
+    ) -> bool:
+        """
+        Send complaint status update notification
+        
+        Args:
+            email: User email
+            name: User name
+            complaint_id: Complaint ID
+            status: New status (Open, In Progress, Resolved, Closed)
+            remark: Status remark/comment (optional)
+            
+        Returns:
+            True if sent successfully
+        """
+        email_service = get_email_service()
+        return await email_service.send_complaint_status_update(email, name, complaint_id, status, remark)
 
     @staticmethod
     async def send_password_reset(

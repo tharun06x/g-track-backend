@@ -143,46 +143,59 @@ class EmailService:
             logger.error(f"Failed to send email to {message.to_email}: {str(e)}")
             return False
 
-    async def send_welcome_email(self, email: str, name: str, password: str) -> bool:
+    async def send_welcome_email(self, email: str, name: str, password: str = None) -> bool:
         """Send welcome email to new user"""
         html_content = f"""
         <html>
             <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
                 <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h1 style="color: #333; margin-bottom: 20px;">Welcome to G-Track! 🎉</h1>
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #2c3e50; margin: 0; font-size: 28px;">Welcome to G-Track! 🚀</h1>
+                    </div>
                     
-                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    <p style="color: #666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
                         Hello <strong>{name}</strong>,
                     </p>
                     
-                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
-                        Thank you for registering with G-Track. Your account has been successfully created!
+                    <p style="color: #666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                        Thank you for joining <strong>G-Track</strong> - your intelligent gas cylinder management and tracking solution! We're excited to have you on board.
                     </p>
                     
-                    <div style="background-color: #f0f0f0; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
-                        <p style="margin: 0; color: #333;">
-                            <strong>Email:</strong> {email}<br>
-                            <strong>Temporary Password:</strong> {password}
-                        </p>
-                        <p style="margin: 10px 0 0 0; color: #e74c3c; font-size: 14px;">
-                            ⚠️ Please change your password on first login.
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; margin: 25px 0; color: white;">
+                        <h2 style="margin: 0 0 15px 0; font-size: 18px;">What You Can Do With G-Track:</h2>
+                        <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                            <li><strong>Real-Time Monitoring:</strong> Track your gas cylinder consumption in real-time</li>
+                            <li><strong>Smart Alerts:</strong> Get instant notifications about usage patterns and potential issues</li>
+                            <li><strong>Leak Detection:</strong> Advanced sensors detect anomalies and gas leaks automatically</li>
+                            <li><strong>Easy Refills:</strong> Request refills with a single click through our platform</li>
+                            <li><strong>Predictive Analytics:</strong> Know when you'll run out of gas and plan ahead</li>
+                        </ul>
+                    </div>
+                    
+                    <h3 style="color: #2c3e50; margin: 25px 0 15px 0;">Getting Started:</h3>
+                    <ol style="color: #666; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                        <li style="margin-bottom: 12px;">Log in to your G-Track account with the credentials you registered</li>
+                        <li style="margin-bottom: 12px;">Complete your profile with your gas distribution details</li>
+                        <li style="margin-bottom: 12px;">Set your gas consumption threshold for smart alerts</li>
+                        <li style="margin-bottom: 12px;">Connect your IoT sensor device to start monitoring</li>
+                    </ol>
+                    
+                    <div style="background-color: #e3f2fd; padding: 15px; border-left: 4px solid #2196F3; margin: 25px 0;">
+                        <p style="margin: 0; color: #1565c0; font-size: 14px;">
+                            <strong>💡 Pro Tip:</strong> Set up your notification preferences to receive real-time updates about your gas usage, refill reminders, and safety alerts.
                         </p>
                     </div>
                     
-                    <h3 style="color: #333; margin-top: 25px; margin-bottom: 15px;">Getting Started:</h3>
-                    <ol style="color: #666; font-size: 16px; line-height: 1.8;">
-                        <li>Log in to your account with your email and temporary password</li>
-                        <li>Update your profile information</li>
-                        <li>Change your password to something secure</li>
-                        <li>Start tracking your gas usage!</li>
-                    </ol>
+                    <p style="color: #666; font-size: 15px; line-height: 1.6; margin: 25px 0 0 0;">
+                        Our support team is here to help! If you have any questions or need assistance, feel free to reach out to us anytime.
+                    </p>
                     
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                        <p style="color: #999; font-size: 14px; margin: 0;">
-                            If you have any questions, please contact our support team.
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #999; font-size: 12px; margin: 10px 0;">
+                            © 2026 G-Track - Smart Gas Cylinder Management System
                         </p>
-                        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">
-                            © 2024 G-Track. All rights reserved.
+                        <p style="color: #999; font-size: 12px; margin: 5px 0;">
+                            Making gas tracking smarter, safer, and easier.
                         </p>
                     </div>
                 </div>
@@ -190,32 +203,37 @@ class EmailService:
         </html>
         """
         
-        plain_text = f"""Welcome to G-Track!
+        plain_text = f"""Welcome to G-Track! 🚀
 
 Hello {name},
 
-Thank you for registering with G-Track. Your account has been successfully created!
+Thank you for joining G-Track - your intelligent gas cylinder management and tracking solution! We're excited to have you on board.
 
-Email: {email}
-Temporary Password: {password}
-
-⚠️ Please change your password on first login.
+What You Can Do With G-Track:
+• Real-Time Monitoring: Track your gas cylinder consumption in real-time
+• Smart Alerts: Get instant notifications about usage patterns and potential issues
+• Leak Detection: Advanced sensors detect anomalies and gas leaks automatically
+• Easy Refills: Request refills with a single click through our platform
+• Predictive Analytics: Know when you'll run out of gas and plan ahead
 
 Getting Started:
-1. Log in to your account with your email and temporary password
-2. Update your profile information
-3. Change your password to something secure
-4. Start tracking your gas usage!
+1. Log in to your G-Track account with the credentials you registered
+2. Complete your profile with your gas distribution details
+3. Set your gas consumption threshold for smart alerts
+4. Connect your IoT sensor device to start monitoring
 
-If you have any questions, please contact our support team.
+Pro Tip: Set up your notification preferences to receive real-time updates about your gas usage, refill reminders, and safety alerts.
 
-© 2024 G-Track. All rights reserved.
+Our support team is here to help! If you have any questions or need assistance, feel free to reach out to us anytime.
+
+© 2026 G-Track - Smart Gas Cylinder Management System
+Making gas tracking smarter, safer, and easier.
 """
         
         message = EmailMessage(
             to_email=email,
             to_name=name,
-            subject="Welcome to G-Track - Your Account is Ready! 🎉",
+            subject="Welcome to G-Track - Smart Gas Management Starts Here! 🚀",
             html_content=html_content,
             plain_text_content=plain_text,
         )
@@ -406,6 +424,283 @@ This link will expire in 24 hours. If you didn't request this, please ignore thi
             to_email=email,
             to_name=name,
             subject="Reset Your G-Track Password",
+            html_content=html_content,
+            plain_text_content=plain_text,
+        )
+        
+        return await self.send_email(message)
+
+    async def send_leak_detection_alert(self, email: str, name: str, drop_rate: float, threshold: float) -> bool:
+        """Send gas leak detection alert email"""
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="color: #d32f2f; margin-bottom: 20px;">⚠️ GAS LEAK DETECTED!</h1>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Hi <strong>{name}</strong>,
+                    </p>
+                    
+                    <p style="color: #d32f2f; font-size: 16px; line-height: 1.5; font-weight: bold;">
+                        Our sensors have detected an unusually high gas consumption rate that may indicate a leak in your system!
+                    </p>
+                    
+                    <div style="background-color: #ffebee; padding: 15px; border-left: 4px solid #d32f2f; margin: 20px 0;">
+                        <p style="margin: 0; color: #333;">
+                            <strong>Current Drop Rate:</strong> {drop_rate:.6f} kg/s<br>
+                            <strong>Alert Threshold:</strong> {threshold:.6f} kg/s<br>
+                            <strong>Status:</strong> <span style="color: #d32f2f; font-weight: bold;">ABNORMAL</span>
+                        </p>
+                    </div>
+                    
+                    <h3 style="color: #333; margin-top: 25px;">Immediate Actions Required:</h3>
+                    <ol style="color: #666; font-size: 16px; line-height: 1.8;">
+                        <li>Check your gas cylinder and connections immediately</li>
+                        <li>Look for any visible gas leaks or hissing sounds</li>
+                        <li>If you find a leak, turn off the gas supply immediately</li>
+                        <li>Contact your distributor or a technician for assistance</li>
+                    </ol>
+                    
+                    <p style="color: #d32f2f; font-size: 14px; font-weight: bold; margin-top: 20px;">
+                        ⚠️ Do not ignore this alert. A gas leak is a serious safety hazard.
+                    </p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #999; font-size: 14px; margin: 0;">
+                            G-Track Safety System - Always prioritize your safety
+                        </p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_text = f"""⚠️ GAS LEAK DETECTED!
+
+Hi {name},
+
+Our sensors have detected an unusually high gas consumption rate that may indicate a leak in your system!
+
+Current Drop Rate: {drop_rate:.6f} kg/s
+Alert Threshold: {threshold:.6f} kg/s
+Status: ABNORMAL
+
+Immediate Actions Required:
+1. Check your gas cylinder and connections immediately
+2. Look for any visible gas leaks or hissing sounds
+3. If you find a leak, turn off the gas supply immediately
+4. Contact your distributor or a technician for assistance
+
+⚠️ Do not ignore this alert. A gas leak is a serious safety hazard.
+
+G-Track Safety System - Always prioritize your safety
+"""
+        
+        message = EmailMessage(
+            to_email=email,
+            to_name=name,
+            subject="🚨 URGENT: Gas Leak Detected - Take Action Now!",
+            html_content=html_content,
+            plain_text_content=plain_text,
+        )
+        
+        return await self.send_email(message)
+
+    async def send_refill_approval(self, email: str, name: str, request_id: str) -> bool:
+        """Send refill request approval confirmation email"""
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">✓ Refill Request Approved!</h1>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Hi <strong>{name}</strong>,
+                    </p>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Great news! Your gas refill request has been approved by your distributor.
+                    </p>
+                    
+                    <div style="background-color: #e8f5e9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
+                        <p style="margin: 0; color: #333;">
+                            <strong>Request ID:</strong> {request_id}<br>
+                            <strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">APPROVED</span><br>
+                            <strong>Next Step:</strong> Your distributor will contact you with delivery details
+                        </p>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        The distributor will reach out with the delivery schedule. Please keep your contact information up to date in your G-Track account.
+                    </p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #999; font-size: 14px; margin: 0;">
+                            Thank you for using G-Track!
+                        </p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_text = f"""✓ Refill Request Approved!
+
+Hi {name},
+
+Great news! Your gas refill request has been approved by your distributor.
+
+Request ID: {request_id}
+Status: APPROVED
+Next Step: Your distributor will contact you with delivery details
+
+The distributor will reach out with the delivery schedule. Please keep your contact information up to date in your G-Track account.
+
+Thank you for using G-Track!
+"""
+        
+        message = EmailMessage(
+            to_email=email,
+            to_name=name,
+            subject=f"Refill Request Approved - ID: {request_id}",
+            html_content=html_content,
+            plain_text_content=plain_text,
+        )
+        
+        return await self.send_email(message)
+
+    async def send_refill_rejection(self, email: str, name: str, request_id: str, reason: str = "") -> bool:
+        """Send refill request rejection notification email"""
+        reason_text = f"\n\nReason: {reason}" if reason else ""
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="color: #ff9800; margin-bottom: 20px;">Refill Request Status</h1>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Hi <strong>{name}</strong>,
+                    </p>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Unfortunately, your gas refill request has been rejected by your distributor. Please view the details below:
+                    </p>
+                    
+                    <div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+                        <p style="margin: 0; color: #333;">
+                            <strong>Request ID:</strong> {request_id}<br>
+                            <strong>Status:</strong> <span style="color: #ff9800; font-weight: bold;">REJECTED</span>
+                            {f"<br><strong>Reason:</strong> {reason}" if reason else ""}
+                        </p>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Please contact your distributor for more information or you can submit a new refill request.
+                    </p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #999; font-size: 14px; margin: 0;">
+                            For assistance, contact your distributor.
+                        </p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_text = f"""Refill Request Status
+
+Hi {name},
+
+Unfortunately, your gas refill request has been rejected by your distributor. Please view the details below:
+
+Request ID: {request_id}
+Status: REJECTED{reason_text}
+
+Please contact your distributor for more information or you can submit a new refill request.
+
+For assistance, contact your distributor.
+"""
+        
+        message = EmailMessage(
+            to_email=email,
+            to_name=name,
+            subject=f"Refill Request Rejected - ID: {request_id}",
+            html_content=html_content,
+            plain_text_content=plain_text,
+        )
+        
+        return await self.send_email(message)
+
+    async def send_complaint_status_update(self, email: str, name: str, complaint_id: str, status: str, remark: str = "") -> bool:
+        """Send complaint status update email"""
+        status_color_map = {
+            "Open": "#ff9800",
+            "In Progress": "#2196F3",
+            "Resolved": "#4CAF50",
+            "Closed": "#424242"
+        }
+        status_color = status_color_map.get(status, "#333")
+        
+        remark_section = f"<p style=\"color: #666; font-size: 14px; line-height: 1.5; margin: 10px 0;\"><strong>Remark:</strong> {remark}</p>" if remark else ""
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="color: #333; margin-bottom: 20px;">Complaint Status Updated</h1>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Hi <strong>{name}</strong>,
+                    </p>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Your complaint status has been updated. Here are the details:
+                    </p>
+                    
+                    <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid {status_color}; margin: 20px 0;">
+                        <p style="margin: 0; color: #333;">
+                            <strong>Complaint ID:</strong> {complaint_id}<br>
+                            <strong>Current Status:</strong> <span style="color: {status_color}; font-weight: bold;">{status.upper()}</span>
+                        </p>
+                        {remark_section}
+                    </div>
+                    
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        You can track the full status of your complaint in your G-Track account dashboard.
+                    </p>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #999; font-size: 14px; margin: 0;">
+                            Thank you for choosing G-Track!
+                        </p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_text = f"""Complaint Status Updated
+
+Hi {name},
+
+Your complaint status has been updated. Here are the details:
+
+Complaint ID: {complaint_id}
+Current Status: {status.upper()}
+{f"Remark: {remark}" if remark else ""}
+
+You can track the full status of your complaint in your G-Track account dashboard.
+
+Thank you for choosing G-Track!
+"""
+        
+        message = EmailMessage(
+            to_email=email,
+            to_name=name,
+            subject=f"Complaint Status Update - ID: {complaint_id}",
             html_content=html_content,
             plain_text_content=plain_text,
         )

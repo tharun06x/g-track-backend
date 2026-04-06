@@ -4,11 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import TokenPayload, get_current_user
 from database import get_db
 from datetime import datetime, UTC
-from typing import Annotated
+from typing import Annotated, Optional
 from models import Refill_request, Users
+from services.email_helper import EmailHelper
 import uuid
-from typing import Optional
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api/v1/refill')
 
@@ -70,6 +72,30 @@ async def approve_refill_request(
 
     await db.commit()
     await db.refresh(refill)
+
+    # Send email notification to user
+    user_result = await db.execute(
+        select(Users).where(Users.user_id == refill.user_id)
+    )
+    user = user_result.scalar_one_or_none()
+    
+    if user:
+        if action == "approved":
+            email_sent = await EmailHelper.send_refill_approval(
+                email=user.email,
+                name=user.name,
+                request_id=refill.request_id
+            )
+        else:  # rejected
+            email_sent = await EmailHelper.send_refill_rejection(
+                email=user.email,
+                name=user.name,
+                request_id=refill.request_id,
+                reason=""
+            )
+        
+        if not email_sent:
+            logger.warning(f"Failed to send refill {action} email to {user.email}")
 
     return {
         "request_id": refill.request_id,
