@@ -14,3 +14,4 @@ pydantic[email]
 aiosmtplib
 email-validator
 asyncpg
+numpy
