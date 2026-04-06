@@ -77,7 +77,7 @@ async def register_user(
     await db.commit()
     await db.refresh(user)
 
-    access_token = create_access_token(user_id=user.user_id, email=user.email)
+    access_token = create_access_token(user_id=user.user_id, email=user.email, role="user")
 
     return {
         "access_token": access_token,
@@ -101,7 +101,7 @@ async def login(
     if not user or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = create_access_token(user_id=user.user_id, email=user.email)
+    token = create_access_token(user_id=user.user_id, email=user.email, role="user")
 
     return {
         "access_token": token,

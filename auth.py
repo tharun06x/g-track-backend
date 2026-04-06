@@ -19,26 +19,29 @@ class AuthSettings(BaseSettings):
 
 
 settings = AuthSettings()
-password_hash = PasswordHash.recommended()
+password_hasher = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
 
 
 class TokenPayload(BaseModel):
     sub: str
     email: str
+    role: str = "user"
+    role: str = "user"
 
 
 def hash_password(password: str) -> str:
-    return password_hash.hash(password)
+    return password_hasher.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return password_hash.verify(plain_password, hashed_password)
+    return password_hasher.verify(plain_password, hashed_password)
 
 
 def create_access_token(
     user_id: str,
     email: str,
+    role: str = "user",
     expires_delta: timedelta | None = None,
 ) -> str:
     expire = datetime.now(UTC) + (
@@ -47,6 +50,7 @@ def create_access_token(
     to_encode = {
         "sub": user_id,
         "email": email,
+        "role": role,
         "exp": expire,
     }
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)

@@ -69,7 +69,7 @@ async def register_distributor(
 
     # Create access token
     access_token = create_access_token(
-        user_id=distributor.id, email=distributor.email
+        user_id=distributor.id, email=distributor.email, role="distributor"
     )
 
     return {
@@ -104,7 +104,7 @@ async def login_distributor(
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token(
-        user_id=distributor.id, email=distributor.email
+        user_id=distributor.id, email=distributor.email, role="distributor"
     )
 
     return {
