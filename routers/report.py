@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession 
 
 from database import get_db
-from models import Sensor_unit
+from models import Sensor_unit, Synthetic_device, Synthetic_feature_row, Synthetic_sensor_reading
 from services.depletion_prediction import (
     latest_depletion_features,
     load_trained_model,
@@ -25,6 +25,116 @@ from services.usage_clustering import (
 )
 
 router=APIRouter(prefix='/api/v1/reports')
+
+
+@router.get('/device/data-overview')
+async def get_device_data_overview(
+    device_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return live + synthetic table insights for a device."""
+    live_latest_query = (
+        select(Sensor_unit)
+        .where(Sensor_unit.sensor_id == device_id)
+        .order_by(Sensor_unit.timestamp.desc())
+        .limit(1)
+    )
+    live_latest_result = await db.execute(live_latest_query)
+    live_latest = live_latest_result.scalar_one_or_none()
+
+    synthetic_device_query = select(Synthetic_device).where(Synthetic_device.device_id == device_id)
+    synthetic_device_result = await db.execute(synthetic_device_query)
+    synthetic_device = synthetic_device_result.scalar_one_or_none()
+
+    synthetic_readings_count_query = select(func.count()).where(
+        Synthetic_sensor_reading.device_id == device_id
+    )
+    synthetic_readings_count_result = await db.execute(synthetic_readings_count_query)
+    synthetic_readings_count = int(synthetic_readings_count_result.scalar() or 0)
+
+    synthetic_features_count_query = select(func.count()).where(
+        Synthetic_feature_row.device_id == device_id
+    )
+    synthetic_features_count_result = await db.execute(synthetic_features_count_query)
+    synthetic_features_count = int(synthetic_features_count_result.scalar() or 0)
+
+    latest_synthetic_reading_query = (
+        select(Synthetic_sensor_reading)
+        .where(Synthetic_sensor_reading.device_id == device_id)
+        .order_by(Synthetic_sensor_reading.timestamp.desc())
+        .limit(1)
+    )
+    latest_synthetic_reading_result = await db.execute(latest_synthetic_reading_query)
+    latest_synthetic_reading = latest_synthetic_reading_result.scalar_one_or_none()
+
+    latest_feature_query = (
+        select(Synthetic_feature_row)
+        .where(Synthetic_feature_row.device_id == device_id)
+        .order_by(Synthetic_feature_row.timestamp.desc())
+        .limit(1)
+    )
+    latest_feature_result = await db.execute(latest_feature_query)
+    latest_feature = latest_feature_result.scalar_one_or_none()
+
+    refill_events_query = select(func.count()).where(
+        Synthetic_sensor_reading.device_id == device_id,
+        Synthetic_sensor_reading.is_refill.is_(True),
+    )
+    refill_events_result = await db.execute(refill_events_query)
+    refill_events = int(refill_events_result.scalar() or 0)
+
+    return {
+        'device_id': device_id,
+        'has_live_sensor_data': live_latest is not None,
+        'has_synthetic_device': synthetic_device is not None,
+        'live_latest': (
+            {
+                'current_weight': live_latest.current_weight,
+                'connection_status': live_latest.connection_status,
+                'timestamp': live_latest.timestamp,
+            }
+            if live_latest is not None
+            else None
+        ),
+        'synthetic_device': (
+            {
+                'dataset_version': synthetic_device.dataset_version,
+                'lifecycle_count': synthetic_device.lifecycle_count,
+                'created_at': synthetic_device.created_at,
+            }
+            if synthetic_device is not None
+            else None
+        ),
+        'synthetic_rows': {
+            'sensor_readings': synthetic_readings_count,
+            'feature_rows': synthetic_features_count,
+            'refill_events': refill_events,
+        },
+        'latest_synthetic_reading': (
+            {
+                'weight': latest_synthetic_reading.weight,
+                'is_refill': latest_synthetic_reading.is_refill,
+                'timestamp': latest_synthetic_reading.timestamp,
+            }
+            if latest_synthetic_reading is not None
+            else None
+        ),
+        'latest_feature': (
+            {
+                'weight': latest_feature.weight,
+                'weight_delta': latest_feature.weight_delta,
+                'consumption_per_day': latest_feature.consumption_per_day,
+                'rolling_7day_avg_consumption': latest_feature.rolling_7day_avg_consumption,
+                'rolling_30day_avg_consumption': latest_feature.rolling_30day_avg_consumption,
+                'days_since_refill': latest_feature.days_since_refill,
+                'session_count_today': latest_feature.session_count_today,
+                'idle_drop_rate': latest_feature.idle_drop_rate,
+                'timestamp': latest_feature.timestamp,
+            }
+            if latest_feature is not None
+            else None
+        ),
+    }
 
 @router.get("/gas-usage/stats")
 async def get_gas_stats(
