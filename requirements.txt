@@ -6,3 +6,10 @@ psycopg2-binary
 pandas
 scikit-learn
 joblib
+aiosqlite
+pwdlib[argon2]
+pyjwt
+pydantic-settings
+pydantic[email]
+aiosmtplib
+email-validator

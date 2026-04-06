@@ -1,0 +1,38 @@
+[Unit]
+Description=G-Track Backend API Service
+Documentation=https://github.com/your-repo/g-track-backend
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/g-track-backend
+EnvironmentFile=/home/ubuntu/g-track-backend/.env
+
+# Start service
+ExecStart=/home/ubuntu/g-track-backend/.venv/bin/gunicorn main:app \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --timeout 60 \
+    --access-logfile /var/log/gtrack/access.log \
+    --error-logfile /var/log/gtrack/error.log \
+    --log-level info
+
+# Restart policy
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/gtrack/app.log
+StandardError=append:/var/log/gtrack/error.log
+
+# Security
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# Resource limits (optional)
+LimitNOFILE=65535
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

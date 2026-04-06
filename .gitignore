@@ -4,3 +4,8 @@ __pychache__/
 *.pyc
 *.pyo
 *.pyd
+docs/
+*.md
+website/
+test/
+*.db

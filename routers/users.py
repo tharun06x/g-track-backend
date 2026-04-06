@@ -26,6 +26,14 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=20)
 
 
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    phone_no: str | None = Field(default=None, pattern=r"^\+?[1-9]\d{7,14}$")
+    address: str | None = Field(default=None, min_length=10, max_length=120)
+    threshold_limit: float | None = Field(default=None, ge=0.1, le=100.0)
+    auto_delivery: bool | None = None
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     payload: UserCreate,
@@ -121,3 +129,147 @@ async def get_current_user_info(
         "name": user.name,
         "email": user.email,
     }
+
+
+# ==================== USER MANAGEMENT ENDPOINTS ====================
+
+
+@router.get("")
+async def list_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    distributor_id: str = None,
+):
+    """
+    List all users/consumers or filter by distributor.
+    """
+    if distributor_id:
+        result = await db.execute(
+            select(Users).where(Users.distributor_name == distributor_id)
+        )
+    else:
+        result = await db.execute(select(Users))
+
+    users = result.scalars().all()
+
+    return [
+        {
+            "user_id": u.user_id,
+            "name": u.name,
+            "email": u.email,
+            "phone_no": u.phone_no,
+            "consumer_no": u.consumer_no,
+            "address": u.address,
+            "state": u.state,
+            "district": u.district,
+            "distributor_id": u.distributor_name,
+            "gas": u.gas,
+            "threshold_limit": u.threshold_limit,
+            "auto_delivery": u.auto_delivery,
+        }
+        for u in users
+    ]
+
+
+@router.get("/{user_id}")
+async def get_user(
+    user_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Get specific user/consumer details.
+    """
+    result = await db.execute(
+        select(Users).where(Users.user_id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "consumer_no": user.consumer_no,
+        "address": user.address,
+        "state": user.state,
+        "district": user.district,
+        "distributor_id": user.distributor_name,
+        "gas": user.gas,
+        "threshold_limit": user.threshold_limit,
+        "auto_delivery": user.auto_delivery,
+    }
+
+
+@router.put("/{user_id}")
+async def update_user(
+    user_id: str,
+    update: UserUpdate,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Update user profile (user can update own profile).
+    """
+    result = await db.execute(
+        select(Users).where(Users.user_id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only user themselves can update their profile
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Update fields if provided
+    if update.name:
+        user.name = update.name
+    if update.phone_no:
+        user.phone_no = update.phone_no
+    if update.address:
+        user.address = update.address
+    if update.threshold_limit is not None:
+        user.threshold_limit = update.threshold_limit
+    if update.auto_delivery is not None:
+        user.auto_delivery = update.auto_delivery
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "message": "User profile updated successfully",
+    }
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Deactivate a user account.
+    """
+    result = await db.execute(
+        select(Users).where(Users.user_id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only user themselves or admin can delete account
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    await db.delete(user)
+    await db.commit()
+
+    return {"message": "User account deleted successfully"}
