@@ -51,6 +51,25 @@ class Admin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
+class DistributorRequest(Base):
+    """Track requests from potential distributors for account creation."""
+    __tablename__ = 'distributor_request'
+    request_id: Mapped[str] = mapped_column(String(20), primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    phone_no: Mapped[str] = mapped_column(String(15), nullable=False)
+    company_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[str] = mapped_column(String(150), nullable=False)
+    state: Mapped[str] = mapped_column(String(30), nullable=False)
+    district: Mapped[str] = mapped_column(String(30), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default='pending', nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    review_comment: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
 class Alert_log(Base):
     __tablename__ = "alert_log"
     alert_id: Mapped[str] = mapped_column(String(30), index=True, primary_key=True)
