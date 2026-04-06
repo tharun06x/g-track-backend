@@ -45,7 +45,7 @@ from services.depletion_prediction import (
 from services.feature_pipeline import build_features
 from services.usage_clustering import train_clustering_model, load_clustering_model
 
-DATABASE_URL = os.getenv("SQLALCHEMY_DATABASE_URL", "sqlite+aiosqlite:///./main.db")
+DATABASE_URL = os.getenv("SQLALCHEMY_DATABASE_URL")
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
