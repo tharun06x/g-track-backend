@@ -44,6 +44,11 @@ class Distributor(Base):
 class Admin(Base):
     __tablename__ = 'admin'
     id: Mapped[str] = mapped_column(String(20), index=True, primary_key=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    phone_no: Mapped[str] = mapped_column(String(15), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class Alert_log(Base):
