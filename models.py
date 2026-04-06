@@ -16,6 +16,7 @@ class Users(Base):
     distributor_name: Mapped[str] = mapped_column(ForeignKey("distributor.id"), nullable=False)
     state: Mapped[str] = mapped_column(String(20), nullable=False)
     district: Mapped[str] = mapped_column(String(20), nullable=False)
+    device_id: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True, index=True)
     gas: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     threshold_limit: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     auto_delivery: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
