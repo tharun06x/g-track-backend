@@ -3,7 +3,9 @@
 
 import random
 from datetime import datetime, timedelta, UTC
-
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.usage_clustering import (
     compute_device_features,
     find_optimal_k,
