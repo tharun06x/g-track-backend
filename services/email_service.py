@@ -123,9 +123,15 @@ class EmailService:
             if message.bcc:
                 recipients.extend(message.bcc)
 
-            # Send email
-            async with aiosmtplib.SMTP(hostname=self.config.smtp_server, port=self.config.smtp_port) as smtp:
-                if self.config.use_tls:
+            # Port 465 expects implicit TLS; port 587 expects STARTTLS upgrade.
+            implicit_tls = self.config.use_tls and self.config.smtp_port == 465
+            async with aiosmtplib.SMTP(
+                hostname=self.config.smtp_server,
+                port=self.config.smtp_port,
+                use_tls=implicit_tls,
+                start_tls=False,
+            ) as smtp:
+                if self.config.use_tls and not implicit_tls:
                     await smtp.starttls()
                 await smtp.login(self.config.sender_email, self.config.sender_password)
                 await smtp.sendmail(self.config.sender_email, recipients, msg.as_string())

@@ -11,11 +11,10 @@ import sys
 from dotenv import load_dotenv
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment variables
 load_dotenv()
-
 from services.email_service import EmailService, EmailMessage, EmailConfig
 from services.email_helper import EmailHelper
 
@@ -102,11 +101,17 @@ async def test_smtp_connection():
         print(f"Attempting to connect to {config.smtp_server}:{config.smtp_port}...")
         
         import aiosmtplib
-        
-        async with aiosmtplib.SMTP(hostname=config.smtp_server, port=config.smtp_port) as smtp:
+
+        implicit_tls = config.use_tls and config.smtp_port == 465
+        async with aiosmtplib.SMTP(
+            hostname=config.smtp_server,
+            port=config.smtp_port,
+            use_tls=implicit_tls,
+            start_tls=False,
+        ) as smtp:
             print(f"✓ Successfully connected to SMTP server")
-            
-            if config.use_tls:
+
+            if config.use_tls and not implicit_tls:
                 await smtp.starttls()
                 print(f"✓ TLS connection established")
             
