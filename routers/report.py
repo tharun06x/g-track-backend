@@ -34,18 +34,18 @@ async def get_gas_stats(
     year: Optional[int] = None,
     month: Optional[int] = None):
     if granularity == "daily":
-        time_label = func.date(Sensor_unit.date).label("period")
+        time_label = func.date(Sensor_unit.timestamp).label("period")
     elif granularity == "monthly":
-        time_label = func.extract('month', Sensor_unit.date).label("period")
+        time_label = func.extract('month', Sensor_unit.timestamp).label("period")
     else: # yearly
-        time_label = func.extract('year', Sensor_unit.date).label("period")
+        time_label = func.extract('year', Sensor_unit.timestamp).label("period")
 
     usage_calc = (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("usage")
     query = select(time_label, usage_calc).where(Sensor_unit.sensor_id == device_id)
     if year:
-        query = query.where(func.extract('year', Sensor_unit.date) == year)
+        query = query.where(func.extract('year', Sensor_unit.timestamp) == year)
     if month and granularity == "daily":
-        query = query.where(func.extract('month', Sensor_unit.date) == month)
+        query = query.where(func.extract('month', Sensor_unit.timestamp) == month)
 
     query = query.group_by(time_label).order_by(time_label)
     result = await db.execute(query)
@@ -89,14 +89,14 @@ async def get_gas_usage_features(
     end: Optional[datetime] = Query(default=None),
 ):
     query = (
-        select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+        select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
         .where(Sensor_unit.sensor_id == device_id)
-        .order_by(Sensor_unit.date.asc())
+        .order_by(Sensor_unit.timestamp.asc())
     )
     if start is not None:
-        query = query.where(Sensor_unit.date >= start)
+        query = query.where(Sensor_unit.timestamp >= start)
     if end is not None:
-        query = query.where(Sensor_unit.date <= end)
+        query = query.where(Sensor_unit.timestamp <= end)
 
     result = await db.execute(query)
     rows = result.all()
@@ -128,7 +128,7 @@ async def get_depletion_prediction(
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows

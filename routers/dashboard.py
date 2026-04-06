@@ -18,7 +18,7 @@ async def get_dashboard_summary(
     latest_query = (
         select(Sensor_unit.current_weight)
         .where(Sensor_unit.sensor_id == device_id)
-        .order_by(Sensor_unit.date.desc())
+        .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )
     latest_result = await db.execute(latest_query)
@@ -28,7 +28,7 @@ async def get_dashboard_summary(
         (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("usage")
     ).where(
         Sensor_unit.sensor_id == device_id,
-        func.date(Sensor_unit.date) == today,
+        func.date(Sensor_unit.timestamp) == today,
     )
     today_result = await db.execute(today_usage_query)
     gas_used_today = today_result.scalar() or 0.0
@@ -37,14 +37,14 @@ async def get_dashboard_summary(
 
     daily_sub = (
         select(
-            func.date(Sensor_unit.date).label("day"),
+            func.date(Sensor_unit.timestamp).label("day"),
             (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("daily_usage"),
         )
         .where(
             Sensor_unit.sensor_id == device_id,
-            func.date(Sensor_unit.date) >= thirty_days_ago,
+            func.date(Sensor_unit.timestamp) >= thirty_days_ago,
         )
-        .group_by(func.date(Sensor_unit.date))
+        .group_by(func.date(Sensor_unit.timestamp))
         .subquery()
     )
 

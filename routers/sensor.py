@@ -34,7 +34,7 @@ async def ingest_sensor_reading(
     latest_query = (
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == payload.device_id)
-        .order_by(Sensor_unit.date.desc())
+        .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )
     latest_result = await db.execute(latest_query)
@@ -45,7 +45,7 @@ async def ingest_sensor_reading(
     alert_id = None
 
     if previous is not None:
-        seconds_elapsed = (reading_time - previous.date).total_seconds()
+        seconds_elapsed = (reading_time - previous.timestamp).total_seconds()
         current_drop_rate = compute_drop_rate(
             previous_weight=previous.current_weight,
             current_weight=payload.weight,
@@ -73,16 +73,16 @@ async def ingest_sensor_reading(
             sensor_id=payload.device_id,
             current_weight=payload.weight,
             connection_status=payload.connection_status,
-            date=reading_time,
-            id=payload.user_id,
+            timestamp=reading_time,
+            user_id=payload.user_id,
         )
         db.add(reading)
     else:
         previous.current_weight = payload.weight
         previous.connection_status = payload.connection_status
-        previous.date = reading_time
+        previous.timestamp = reading_time
         if payload.user_id is not None:
-            previous.id = payload.user_id
+            previous.user_id = payload.user_id
         reading = previous
 
     await db.commit()
@@ -90,7 +90,7 @@ async def ingest_sensor_reading(
 
     return {
         "device_id": payload.device_id,
-        "saved_at": reading.date,
+        "saved_at": reading.timestamp,
         "current_weight": reading.current_weight,
         "leak_detected": leak_detected,
         "drop_rate_kg_per_sec": current_drop_rate,
