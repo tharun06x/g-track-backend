@@ -5,9 +5,11 @@ This script generates synthetic multi-device household data and trains
 the K-means clustering model to identify usage behavior patterns.
 """
 
+import os
+import sys
 import random
 from datetime import datetime, timedelta, UTC
-
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.usage_clustering import train_clustering_model
 
 
