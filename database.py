@@ -12,10 +12,13 @@ if not db_url:
 engine: AsyncEngine = create_async_engine(
     db_url,
     pool_pre_ping=True,
+    echo=True,
+    connect_args={"ssl": True}
 )
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    expire_on_commit=False,
+    class_=AsyncSession,
+    expire_on_commit=False
 )
 
 class Base(DeclarativeBase):
