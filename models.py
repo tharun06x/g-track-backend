@@ -107,6 +107,26 @@ class Refill_request(Base):
     distributor: Mapped['Distributor | None'] = relationship(back_populates='approved_refills')
 
 
+class Complaint(Base):
+    """Customer complaints/support tickets."""
+    __tablename__ = "complaint"
+    complaint_id: Mapped[str] = mapped_column(String(20), primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.user_id'), nullable=False, index=True)
+    distributor_id: Mapped[str] = mapped_column(ForeignKey('distributor.id'), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='Open')
+    remark: Mapped[str] = mapped_column(String(500), nullable=True, default='')
+    consumer_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    consumer_email: Mapped[str] = mapped_column(String(120), nullable=False)
+    consumer_phone: Mapped[str] = mapped_column(String(15), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    user: Mapped['Users'] = relationship()
+    distributor: Mapped['Distributor'] = relationship()
+
+
 # ============================================================================
 # SYNTHETIC DATA & ML FEATURE TABLES
 # ============================================================================

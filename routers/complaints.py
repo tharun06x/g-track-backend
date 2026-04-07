@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import TokenPayload, get_current_user
 from database import get_db
-from models import Users
+from models import Users, Complaint, Distributor
 from services.email_helper import EmailHelper
 
 logger = logging.getLogger(__name__)
@@ -53,18 +53,24 @@ async def create_complaint(
 
     complaint_id = f"CMP-{uuid.uuid4().hex[:8].upper()}"
     
-    new_complaint = {
-        "id": complaint_id,
-        "distributor_id": user.distributor_name,
-        "date": datetime.now(UTC).isoformat(),
-        "category": complaint.category,
-        "description": complaint.description,
-        "status": "Open",
-        "consumer_name": complaint.consumer_name,
-        "consumer_email": complaint.consumer_email,
-        "consumer_phone": complaint.consumer_phone,
-        "remark": "",
-    }
+    # Create complaint in database
+    new_complaint = Complaint(
+        complaint_id=complaint_id,
+        user_id=current_user.sub,
+        distributor_id=user.distributor_name,
+        category=complaint.category,
+        description=complaint.description,
+        status="Open",
+        remark="",
+        consumer_name=complaint.consumer_name,
+        consumer_email=complaint.consumer_email,
+        consumer_phone=complaint.consumer_phone,
+        created_at=datetime.now(UTC),
+    )
+    
+    db.add(new_complaint)
+    await db.commit()
+    await db.refresh(new_complaint)
 
     # Send complaint confirmation email
     email_sent = await EmailHelper.send_complaint_confirmation(
@@ -77,8 +83,8 @@ async def create_complaint(
         logger.warning(f"Failed to send complaint confirmation email to {complaint.consumer_email}")
 
     return {
-        "complaint_id": new_complaint["id"],
-        "status": new_complaint["status"],
+        "complaint_id": new_complaint.complaint_id,
+        "status": new_complaint.status,
         "message": "Complaint submitted successfully",
     }
 
@@ -93,29 +99,34 @@ async def list_complaints(
     List complaints with optional filters.
     If distributor_id is provided, returns complaints for that distributor.
     """
-    # This is a mock implementation - in production, you'd query a Complaint table
-    complaints = [
-        {
-            "id": "CMP-101",
-            "distributor_id": distributor_id or "DIST-001",
-            "date": "2026-03-24",
-            "category": "Delivery Delay",
-            "description": "Refill not delivered after 3 days of booking.",
-            "status": "Open",
-            "consumer_name": "John Doe",
-            "consumer_phone": "+91 98765 43210",
-            "consumer_email": "john@example.com",
-            "remark": "",
-        }
-    ]
-
+    query = select(Complaint)
+    
     if distributor_id:
-        complaints = [c for c in complaints if c["distributor_id"] == distributor_id]
+        query = query.where(Complaint.distributor_id == distributor_id)
 
     if status_filter:
-        complaints = [c for c in complaints if c["status"] == status_filter]
+        query = query.where(Complaint.status == status_filter)
 
-    return complaints
+    query = query.order_by(Complaint.created_at.desc())
+    result = await db.execute(query)
+    complaints = result.scalars().all()
+
+    return [
+        {
+            "id": c.complaint_id,
+            "complaint_id": c.complaint_id,
+            "distributor_id": c.distributor_id,
+            "date": c.created_at.strftime("%Y-%m-%d"),
+            "category": c.category,
+            "description": c.description,
+            "status": c.status,
+            "consumer_name": c.consumer_name,
+            "consumer_phone": c.consumer_phone,
+            "consumer_email": c.consumer_email,
+            "remark": c.remark or "",
+        }
+        for c in complaints
+    ]
 
 
 @router.get("/{complaint_id}")
@@ -126,26 +137,27 @@ async def get_complaint(
     """
     Get specific complaint details.
     """
-    # Mock implementation
-    complaints = {
-        "CMP-101": {
-            "id": "CMP-101",
-            "distributor_id": "DIST-001",
-            "date": "2026-03-24",
-            "category": "Delivery Delay",
-            "description": "Refill not delivered after 3 days of booking.",
-            "status": "Open",
-            "consumer_name": "John Doe",
-            "consumer_phone": "+91 98765 43210",
-            "consumer_email": "john@example.com",
-            "remark": "",
-        }
-    }
+    result = await db.execute(
+        select(Complaint).where(Complaint.complaint_id == complaint_id)
+    )
+    complaint = result.scalar_one_or_none()
 
-    if complaint_id not in complaints:
+    if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    return complaints[complaint_id]
+    return {
+        "id": complaint.complaint_id,
+        "complaint_id": complaint.complaint_id,
+        "distributor_id": complaint.distributor_id,
+        "date": complaint.created_at.strftime("%Y-%m-%d"),
+        "category": complaint.category,
+        "description": complaint.description,
+        "status": complaint.status,
+        "consumer_name": complaint.consumer_name,
+        "consumer_phone": complaint.consumer_phone,
+        "consumer_email": complaint.consumer_email,
+        "remark": complaint.remark or "",
+    }
 
 
 @router.put("/{complaint_id}")
@@ -166,6 +178,23 @@ async def update_complaint(
             detail=f"Invalid status. Must be one of: {', '.join(allowed_statuses)}"
         )
 
+    # Get complaint from database
+    result = await db.execute(
+        select(Complaint).where(Complaint.complaint_id == complaint_id)
+    )
+    complaint = result.scalar_one_or_none()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    # Update complaint
+    complaint.status = update.status
+    complaint.remark = update.remark
+    complaint.updated_at = datetime.now(UTC)
+
+    await db.commit()
+    await db.refresh(complaint)
+
     # Send status update email if consumer info is provided
     if update.consumer_email and update.consumer_name:
         email_sent = await EmailHelper.send_complaint_status_update(
@@ -179,10 +208,10 @@ async def update_complaint(
             logger.warning(f"Failed to send complaint status update email to {update.consumer_email}")
 
     return {
-        "complaint_id": complaint_id,
-        "status": update.status,
-        "remark": update.remark,
-        "updated_at": datetime.now(UTC).isoformat(),
+        "complaint_id": complaint.complaint_id,
+        "status": complaint.status,
+        "remark": complaint.remark,
+        "updated_at": complaint.updated_at.isoformat() if complaint.updated_at else None,
         "message": "Complaint updated successfully",
     }
 
@@ -192,57 +221,37 @@ async def update_complaint(
 async def get_distributor_complaints(
     distributor_id: str,
     status_filter: str = None,
-    current_user: Annotated[TokenPayload, Depends(get_current_user)] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
     """
     Get all complaints for a specific distributor.
     Optional status filter: "Open", "In Progress", "Resolved", "Closed"
     """
-    # Mock implementation - returns distributor's complaints
-    complaints = [
-        {
-            "id": "CMP-101",
-            "distributor_id": distributor_id,
-            "date": "2026-03-24",
-            "category": "Delivery Delay",
-            "description": "Refill not delivered after 3 days of booking.",
-            "status": "Open",
-            "consumer_name": "John Doe",
-            "consumer_phone": "+91 98765 43210",
-            "consumer_email": "john@example.com",
-            "remark": "",
-        },
-        {
-            "id": "CMP-102",
-            "distributor_id": distributor_id,
-            "date": "2026-03-28",
-            "category": "Product Quality",
-            "description": "Received damaged cylinder.",
-            "status": "In Progress",
-            "consumer_name": "Jane Smith",
-            "consumer_phone": "+91 87654 32109",
-            "consumer_email": "jane@example.com",
-            "remark": "Replacement scheduled for next week",
-        },
-        {
-            "id": "CMP-103",
-            "distributor_id": distributor_id,
-            "date": "2026-04-02",
-            "category": "Billing Issue",
-            "description": "Overcharged for last refill.",
-            "status": "Resolved",
-            "consumer_name": "Mike Johnson",
-            "consumer_phone": "+91 76543 21098",
-            "consumer_email": "mike@example.com",
-            "remark": "Refund processed successfully",
-        },
-    ]
-
+    query = select(Complaint).where(Complaint.distributor_id == distributor_id)
+    
     if status_filter:
-        complaints = [c for c in complaints if c["status"] == status_filter]
+        query = query.where(Complaint.status == status_filter)
 
-    return complaints
+    query = query.order_by(Complaint.created_at.desc())
+    result = await db.execute(query)
+    complaints = result.scalars().all()
+
+    return [
+        {
+            "id": c.complaint_id,
+            "complaint_id": c.complaint_id,
+            "distributor_id": c.distributor_id,
+            "date": c.created_at.strftime("%Y-%m-%d"),
+            "category": c.category,
+            "description": c.description,
+            "status": c.status,
+            "consumer_name": c.consumer_name,
+            "consumer_phone": c.consumer_phone,
+            "consumer_email": c.consumer_email,
+            "remark": c.remark or "",
+        }
+        for c in complaints
+    ]
 
 
 # 7. Get complaints filed by a specific user (for user dashboard)
@@ -254,41 +263,33 @@ async def get_user_complaints(
     """
     Get all complaints filed by a specific user.
     """
-    # Get user's distributor
-    result = await db.execute(
+    # Get user's info
+    user_result = await db.execute(
         select(Users).where(Users.user_id == user_id)
     )
-    user = result.scalar_one_or_none()
+    user = user_result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Mock implementation - returns user's complaints
-    complaints = [
-        {
-            "id": "CMP-201",
-            "distributor_id": user.distributor_name,
-            "date": "2026-03-15",
-            "category": "Device Issue",
-            "description": "Sensor not reading properly",
-            "status": "Resolved",
-            "consumer_name": user.name,
-            "consumer_phone": user.phone_number or "",
-            "consumer_email": user.email,
-            "remark": "Device replaced",
-        },
-        {
-            "id": "CMP-202",
-            "distributor_id": user.distributor_name,
-            "date": "2026-04-01",
-            "category": "Service Issue",
-            "description": "Late delivery for refill",
-            "status": "In Progress",
-            "consumer_name": user.name,
-            "consumer_phone": user.phone_number or "",
-            "consumer_email": user.email,
-            "remark": "Driver contacted, ETA 2 hours",
-        },
-    ]
+    # Get user's complaints from database
+    query = select(Complaint).where(Complaint.user_id == user_id).order_by(Complaint.created_at.desc())
+    result = await db.execute(query)
+    complaints = result.scalars().all()
 
-    return complaints
+    return [
+        {
+            "id": c.complaint_id,
+            "complaint_id": c.complaint_id,
+            "distributor_id": c.distributor_id,
+            "date": c.created_at.strftime("%Y-%m-%d"),
+            "category": c.category,
+            "description": c.description,
+            "status": c.status,
+            "consumer_name": c.consumer_name,
+            "consumer_phone": c.consumer_phone,
+            "consumer_email": c.consumer_email,
+            "remark": c.remark or "",
+        }
+        for c in complaints
+    ]
