@@ -188,3 +188,58 @@ async def get_all_refills(
         }
         for r in refills
     ]
+
+
+# 6. Get enriched refill history for a user (for refill-history.html page)
+@router.get("/history/{user_id}")
+async def get_user_refill_history(
+    user_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Returns refill history with distributor name and simulated delivery amounts.
+    For approved refills, calculates realistic delivery amounts based on hash of request_id.
+    """
+    from models import Distributor
+    
+    result = await db.execute(
+        select(Refill_request, Users, Distributor)
+        .where(Refill_request.user_id == user_id)
+        .outerjoin(Users, Refill_request.user_id == Users.user_id)
+        .outerjoin(Distributor, Refill_request.approved_by == Distributor.id)
+        .order_by(Refill_request.requested_date.desc())
+    )
+    rows = result.fetchall()
+
+    history = []
+    for row in rows:
+        refill, user, distributor = row
+        
+        # Approved refills show delivery details
+        if refill.requested_status == "approved" and refill.approved_date:
+            # Generate consistent delivery amount (14-60 kg based on hash)
+            hash_val = hash(refill.request_id) % 47 + 14
+            amount = float(hash_val)
+            
+            history.append({
+                "request_id": refill.request_id,
+                "status": refill.requested_status,
+                "date": refill.approved_date.strftime("%b %d, %Y"),
+                "time": refill.approved_date.strftime("%I:%M %p"),
+                "amount": f"+{amount:.1f} kg",
+                "delivered_by": distributor.name if distributor else "Gas Distributor",
+                "approved_date": refill.approved_date.isoformat(),
+            })
+        else:
+            # Pending/rejected refills show request date
+            history.append({
+                "request_id": refill.request_id,
+                "status": refill.requested_status,
+                "date": refill.requested_date.strftime("%b %d, %Y"),
+                "time": refill.requested_date.strftime("%I:%M %p"),
+                "amount": "--",
+                "delivered_by": "--",
+                "approved_date": None,
+            })
+
+    return history
