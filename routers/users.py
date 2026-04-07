@@ -145,7 +145,12 @@ async def get_current_user_info(
         "user_id": user.user_id,
         "name": user.name,
         "email": user.email,
+        "phone_no": user.phone_no,
+        "address": user.address,
+        "state": user.state,
+        "district": user.district,
         "device_id": user.device_id,
+        "distributor_name": user.distributor_name,
     }
 
 

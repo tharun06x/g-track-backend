@@ -15,6 +15,8 @@ class SettingsUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=30)
     address: Optional[str] = Field(default=None, min_length=1, max_length=100)
     phone_no: Optional[str] = Field(default=None, max_length=15)
+    state: Optional[str] = Field(default=None, max_length=50)
+    district: Optional[str] = Field(default=None, max_length=50)
     threshold_limit: Optional[float] = Field(default=None, gt=0)
     auto_delivery: Optional[bool] = None
 
@@ -41,6 +43,8 @@ async def get_settings(
         "name": user.name,
         "address": user.address,
         "phone_no": user.phone_no,
+        "state": user.state,
+        "district": user.district,
         "threshold_limit": user.threshold_limit,
         "auto_delivery": user.auto_delivery,
     }
@@ -79,6 +83,8 @@ async def update_settings(
         "name": user.name,
         "address": user.address,
         "phone_no": user.phone_no,
+        "state": user.state,
+        "district": user.district,
         "threshold_limit": user.threshold_limit,
         "auto_delivery": user.auto_delivery,
     }
