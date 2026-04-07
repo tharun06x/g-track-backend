@@ -185,3 +185,110 @@ async def update_complaint(
         "updated_at": datetime.now(UTC).isoformat(),
         "message": "Complaint updated successfully",
     }
+
+
+# 6. Get complaints for distributor (for distributor dashboard)
+@router.get("/distributor/{distributor_id}")
+async def get_distributor_complaints(
+    distributor_id: str,
+    status_filter: str = None,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+):
+    """
+    Get all complaints for a specific distributor.
+    Optional status filter: "Open", "In Progress", "Resolved", "Closed"
+    """
+    # Mock implementation - returns distributor's complaints
+    complaints = [
+        {
+            "id": "CMP-101",
+            "distributor_id": distributor_id,
+            "date": "2026-03-24",
+            "category": "Delivery Delay",
+            "description": "Refill not delivered after 3 days of booking.",
+            "status": "Open",
+            "consumer_name": "John Doe",
+            "consumer_phone": "+91 98765 43210",
+            "consumer_email": "john@example.com",
+            "remark": "",
+        },
+        {
+            "id": "CMP-102",
+            "distributor_id": distributor_id,
+            "date": "2026-03-28",
+            "category": "Product Quality",
+            "description": "Received damaged cylinder.",
+            "status": "In Progress",
+            "consumer_name": "Jane Smith",
+            "consumer_phone": "+91 87654 32109",
+            "consumer_email": "jane@example.com",
+            "remark": "Replacement scheduled for next week",
+        },
+        {
+            "id": "CMP-103",
+            "distributor_id": distributor_id,
+            "date": "2026-04-02",
+            "category": "Billing Issue",
+            "description": "Overcharged for last refill.",
+            "status": "Resolved",
+            "consumer_name": "Mike Johnson",
+            "consumer_phone": "+91 76543 21098",
+            "consumer_email": "mike@example.com",
+            "remark": "Refund processed successfully",
+        },
+    ]
+
+    if status_filter:
+        complaints = [c for c in complaints if c["status"] == status_filter]
+
+    return complaints
+
+
+# 7. Get complaints filed by a specific user (for user dashboard)
+@router.get("/user/{user_id}")
+async def get_user_complaints(
+    user_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Get all complaints filed by a specific user.
+    """
+    # Get user's distributor
+    result = await db.execute(
+        select(Users).where(Users.user_id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Mock implementation - returns user's complaints
+    complaints = [
+        {
+            "id": "CMP-201",
+            "distributor_id": user.distributor_name,
+            "date": "2026-03-15",
+            "category": "Device Issue",
+            "description": "Sensor not reading properly",
+            "status": "Resolved",
+            "consumer_name": user.name,
+            "consumer_phone": user.phone_number or "",
+            "consumer_email": user.email,
+            "remark": "Device replaced",
+        },
+        {
+            "id": "CMP-202",
+            "distributor_id": user.distributor_name,
+            "date": "2026-04-01",
+            "category": "Service Issue",
+            "description": "Late delivery for refill",
+            "status": "In Progress",
+            "consumer_name": user.name,
+            "consumer_phone": user.phone_number or "",
+            "consumer_email": user.email,
+            "remark": "Driver contacted, ETA 2 hours",
+        },
+    ]
+
+    return complaints
