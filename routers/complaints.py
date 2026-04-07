@@ -149,7 +149,7 @@ async def get_complaint(
         "id": complaint.complaint_id,
         "complaint_id": complaint.complaint_id,
         "distributor_id": complaint.distributor_id,
-        "date": complaint.created_at.strftime("%Y-%m-%d"),
+        "date": complaint.created_at.strftime("%Y-%m-%d") if complaint.created_at else "",
         "category": complaint.category,
         "description": complaint.description,
         "status": complaint.status,
@@ -258,11 +258,17 @@ async def get_distributor_complaints(
 @router.get("/user/{user_id}")
 async def get_user_complaints(
     user_id: str,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get all complaints filed by a specific user.
+    Users can only view their own complaints.
     """
+    # Verify user is viewing their own complaints
+    if current_user.sub != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized - can only view your own complaints")
+    
     # Get user's info
     user_result = await db.execute(
         select(Users).where(Users.user_id == user_id)
@@ -282,7 +288,7 @@ async def get_user_complaints(
             "id": c.complaint_id,
             "complaint_id": c.complaint_id,
             "distributor_id": c.distributor_id,
-            "date": c.created_at.strftime("%Y-%m-%d"),
+            "date": c.created_at.strftime("%Y-%m-%d") if c.created_at else "",
             "category": c.category,
             "description": c.description,
             "status": c.status,
