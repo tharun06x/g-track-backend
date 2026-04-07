@@ -85,9 +85,9 @@ class Alert_log(Base):
 class Sensor_unit(Base):
     __tablename__ = "sensor_unit"
     sensor_id: Mapped[str] = mapped_column(String(30), primary_key=True, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True, index=True, default=lambda: datetime.now(UTC))
     current_weight: Mapped[float] = mapped_column(Float, nullable=False)
     connection_status: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey('users.user_id'), nullable=False, index=True)
     
     user: Mapped['Users'] = relationship(back_populates='sensor_readings')

@@ -81,29 +81,25 @@ async def ingest_sensor_reading(
                         logger.warning(f"Failed to send leak detection email to {user.email}")
                         
 
-    # Persist reading after leak check.
-    if previous is None:
-        if payload.user_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail="user_id is required for first reading of a device",
-            )
-
-        reading = Sensor_unit(
-            sensor_id=payload.device_id,
-            current_weight=payload.weight,
-            connection_status=payload.connection_status,
-            timestamp=reading_time,
-            user_id=payload.user_id,
+    # Get user_id from payload or from previous reading
+    user_id = payload.user_id
+    if user_id is None and previous is None:
+        raise HTTPException(
+            status_code=400,
+            detail="user_id is required for first reading of a device",
         )
-        db.add(reading)
-    else:
-        previous.current_weight = payload.weight
-        previous.connection_status = payload.connection_status
-        previous.timestamp = reading_time
-        if payload.user_id is not None:
-            previous.user_id = payload.user_id
-        reading = previous
+    elif user_id is None and previous is not None:
+        user_id = previous.user_id
+
+    # Always create a new reading (append-only log)
+    reading = Sensor_unit(
+        sensor_id=payload.device_id,
+        current_weight=payload.weight,
+        connection_status=payload.connection_status,
+        timestamp=reading_time,
+        user_id=user_id,
+    )
+    db.add(reading)
 
     await db.commit()
     await db.refresh(reading)
