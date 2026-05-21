@@ -228,9 +228,9 @@ async def get_depletion_prediction(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     query = (
-        select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+        select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
         .where(Sensor_unit.sensor_id == device_id)
-        .order_by(Sensor_unit.date.asc())
+        .order_by(Sensor_unit.timestamp.asc())
     )
     result = await db.execute(query)
     rows = result.all()
