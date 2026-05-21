@@ -32,7 +32,10 @@ async def ingest_sensor_reading(
     payload: SensorReadingIn,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    reading_time = payload.timestamp or datetime.now(UTC)
+    # Always use server UTC time — ESP32 may send local (IST) timestamps without
+    # timezone info, which PostgreSQL stores as UTC causing them to appear ~5h30m
+    # in the future and get filtered out by func.now() queries.
+    reading_time = datetime.now(UTC)
 
     latest_query = (
         select(Sensor_unit)
