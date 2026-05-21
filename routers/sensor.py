@@ -53,6 +53,22 @@ async def ingest_sensor_reading(
 
     if previous is not None:
         seconds_elapsed = (reading_time - previous.timestamp).total_seconds()
+        
+        # THROTTLE: If the weight changed by less than 20 grams (0.02kg) AND it hasn't
+        # been 5 minutes (300s) since the last saved reading, ignore this POST.
+        # This prevents the DB from ballooning and slowing down when the cylinder is idle.
+        if abs(payload.weight - previous.current_weight) < 0.02 and seconds_elapsed < 300:
+            return {
+                "device_id": payload.device_id,
+                "saved_at": previous.timestamp,
+                "current_weight": previous.current_weight,
+                "leak_detected": False,
+                "drop_rate_kg_per_sec": 0,
+                "leak_threshold_kg_per_sec": LEAK_THRESHOLD,
+                "alert_id": None,
+                "note": "Skipped DB insert (weight stable)",
+            }
+
         current_drop_rate = compute_drop_rate(
             previous_weight=previous.current_weight,
             current_weight=payload.weight,
