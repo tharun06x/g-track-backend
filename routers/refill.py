@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth import TokenPayload, get_current_user
 from database import get_db
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from typing import Annotated, Optional
 from models import Refill_request, Users
 from services.email_helper import EmailHelper
@@ -13,6 +13,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api/v1/refill')
+
+REFILL_WAIT_DAYS = 25 
 
 
 # 1. User requests a refill
@@ -24,6 +26,27 @@ async def create_refill_request(
 ):
     if current_user.sub != user_id:
         raise HTTPException(status_code=403, detail="Not authorized for this user")
+
+    latest_result = await db.execute(
+        select(Refill_request)
+        .where(Refill_request.user_id == user_id)
+        .order_by(Refill_request.requested_date.desc())
+        .limit(1)
+    )
+    latest_request = latest_result.scalar_one_or_none()
+    if latest_request:
+        now = datetime.now(UTC)
+        next_allowed = latest_request.requested_date + timedelta(days=REFILL_WAIT_DAYS)
+        if now < next_allowed:
+            remaining = next_allowed - now
+            remaining_days = max(1, int(remaining.total_seconds() // 86400) + 1)
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Next refill request allowed in {remaining_days} day(s). "
+                    f"Allowed after {next_allowed.isoformat()}."
+                ),
+            )
 
     request_id = uuid.uuid4().hex[:10]
 
