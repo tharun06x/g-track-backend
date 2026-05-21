@@ -152,7 +152,10 @@ async def get_gas_stats(
         time_label = func.extract('year', Sensor_unit.timestamp).label("period")
 
     usage_calc = (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("usage")
-    query = select(time_label, usage_calc).where(Sensor_unit.sensor_id == device_id)
+    query = select(time_label, usage_calc).where(
+        Sensor_unit.sensor_id == device_id,
+        Sensor_unit.timestamp <= func.now(),
+    )
     if year:
         query = query.where(func.extract('year', Sensor_unit.timestamp) == year)
     if month and granularity == "daily":

@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Alert_log, Users
@@ -64,10 +64,11 @@ async def get_cylinder_remaining_weight(
     """
     from models import Sensor_unit
     
-    # Get the latest sensor reading
+    # Get the latest sensor reading (only past/present — ignore future synthetic rows)
     latest_query = (
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == sensor_id)
+        .where(Sensor_unit.timestamp <= func.now())
         .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )
@@ -81,6 +82,7 @@ async def get_cylinder_remaining_weight(
     previous_query = (
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == sensor_id)
+        .where(Sensor_unit.timestamp <= func.now())
         .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
         .offset(1)

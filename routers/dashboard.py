@@ -30,6 +30,7 @@ async def get_dashboard_summary(
     ).where(
         Sensor_unit.sensor_id == device_id,
         func.date(Sensor_unit.timestamp) == today,
+        Sensor_unit.timestamp <= func.now(),
     )
     today_result = await db.execute(today_usage_query)
     gas_used_today = today_result.scalar() or 0.0
@@ -44,6 +45,7 @@ async def get_dashboard_summary(
         .where(
             Sensor_unit.sensor_id == device_id,
             func.date(Sensor_unit.timestamp) >= thirty_days_ago,
+            Sensor_unit.timestamp <= func.now(),
         )
         .group_by(func.date(Sensor_unit.timestamp))
         .subquery()
