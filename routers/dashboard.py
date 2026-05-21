@@ -18,6 +18,7 @@ async def get_dashboard_summary(
     latest_query = (
         select(Sensor_unit.current_weight)
         .where(Sensor_unit.sensor_id == device_id)
+        .where(Sensor_unit.timestamp <= func.now())
         .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )

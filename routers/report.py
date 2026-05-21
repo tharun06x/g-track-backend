@@ -36,6 +36,7 @@ async def get_device_data_overview(
     live_latest_query = (
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == device_id)
+        .where(Sensor_unit.timestamp <= func.now())
         .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )

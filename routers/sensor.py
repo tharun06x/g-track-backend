@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -37,6 +37,7 @@ async def ingest_sensor_reading(
     latest_query = (
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == payload.device_id)
+        .where(Sensor_unit.timestamp <= func.now())
         .order_by(Sensor_unit.timestamp.desc())
         .limit(1)
     )
