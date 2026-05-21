@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api/v1/refill')
 
-REFILL_WAIT_DAYS = 25
+REFILL_WAIT_DAYS = 25 
 
 
 # 1. User requests a refill
