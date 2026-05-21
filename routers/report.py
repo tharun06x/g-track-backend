@@ -215,7 +215,7 @@ async def get_gas_usage_features(
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows
@@ -281,14 +281,14 @@ async def train_clustering(
     
     Returns cluster assignments and profiles.
     """
-    query = select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+    query = select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
     result = await db.execute(query)
     rows = result.all()
 
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows
@@ -307,14 +307,14 @@ async def get_cluster_assignments(
     if kmeans is None:
         return {"error": "Clustering model not trained yet. Call POST /gas-usage/clustering/train first."}
 
-    query = select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+    query = select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
     result = await db.execute(query)
     rows = result.all()
 
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows
@@ -352,14 +352,14 @@ async def get_cluster_profiles(
     if kmeans is None:
         return {"error": "Clustering model not trained yet. Call POST /gas-usage/clustering/train first."}
 
-    query = select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+    query = select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
     result = await db.execute(query)
     rows = result.all()
 
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows
@@ -434,9 +434,9 @@ async def benchmark_device(
 
     # Get device data
     query = (
-        select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+        select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
         .where(Sensor_unit.sensor_id == device_id)
-        .order_by(Sensor_unit.date.asc())
+        .order_by(Sensor_unit.timestamp.asc())
     )
     result = await db.execute(query)
     rows = result.all()
@@ -447,7 +447,7 @@ async def benchmark_device(
     records = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows
@@ -460,14 +460,14 @@ async def benchmark_device(
     cluster_id = device_result["cluster"]
 
     # Get all cluster data for comparison
-    query_all = select(Sensor_unit.sensor_id, Sensor_unit.date, Sensor_unit.current_weight)
+    query_all = select(Sensor_unit.sensor_id, Sensor_unit.timestamp, Sensor_unit.current_weight)
     result_all = await db.execute(query_all)
     rows_all = result_all.all()
 
     records_all = [
         {
             "device_id": row.sensor_id,
-            "timestamp": row.date,
+            "timestamp": row.timestamp,
             "weight": row.current_weight,
         }
         for row in rows_all
