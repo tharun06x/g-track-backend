@@ -33,7 +33,7 @@ app.add_middleware(
         "null",  # allows file:// origin for local file testing
     ],
     allow_origin_regex=r"https://.*(onrender\.com|vercel\.app|netlify\.app)$",
-    allow_credentials=True,
+    allow_credentials=False,  # JWT goes in Authorization header, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
