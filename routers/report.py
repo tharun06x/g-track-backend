@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, union_all
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession 
 
 from database import get_db
@@ -143,33 +143,19 @@ async def get_gas_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
     year: Optional[int] = None,
     month: Optional[int] = None):
-    q1 = select(
-        Sensor_unit.sensor_id.label('device_id'),
-        Sensor_unit.timestamp.label('timestamp'),
-        Sensor_unit.current_weight.label('weight')
-    ).where(Sensor_unit.sensor_id == device_id)
-    
-    q2 = select(
-        Synthetic_sensor_reading.device_id.label('device_id'),
-        Synthetic_sensor_reading.timestamp.label('timestamp'),
-        Synthetic_sensor_reading.weight.label('weight')
-    ).where(Synthetic_sensor_reading.device_id == device_id)
-    
-    combined = union_all(q1, q2).subquery()
-
     if granularity == "daily":
-        time_label = func.date(combined.c.timestamp).label("period")
+        time_label = func.date(Sensor_unit.timestamp).label("period")
     elif granularity == "monthly":
-        time_label = func.extract('month', combined.c.timestamp).label("period")
+        time_label = func.extract('month', Sensor_unit.timestamp).label("period")
     else: # yearly
-        time_label = func.extract('year', combined.c.timestamp).label("period")
+        time_label = func.extract('year', Sensor_unit.timestamp).label("period")
 
-    usage_calc = (func.max(combined.c.weight) - func.min(combined.c.weight)).label("usage")
-    query = select(time_label, usage_calc)
+    usage_calc = (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("usage")
+    query = select(time_label, usage_calc).where(Sensor_unit.sensor_id == device_id)
     if year:
-        query = query.where(func.extract('year', combined.c.timestamp) == year)
+        query = query.where(func.extract('year', Sensor_unit.timestamp) == year)
     if month and granularity == "daily":
-        query = query.where(func.extract('month', combined.c.timestamp) == month)
+        query = query.where(func.extract('month', Sensor_unit.timestamp) == month)
 
     query = query.group_by(time_label).order_by(time_label)
     result = await db.execute(query)
