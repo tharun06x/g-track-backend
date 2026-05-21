@@ -143,19 +143,25 @@ async def get_gas_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
     year: Optional[int] = None,
     month: Optional[int] = None):
-    if granularity == "daily":
-        time_label = func.date(Sensor_unit.timestamp).label("period")
-    elif granularity == "monthly":
-        time_label = func.extract('month', Sensor_unit.timestamp).label("period")
-    else: # yearly
-        time_label = func.extract('year', Sensor_unit.timestamp).label("period")
+    is_synth = device_id.startswith("SYNTH-")
+    model = Synthetic_sensor_reading if is_synth else Sensor_unit
+    id_col = model.device_id if is_synth else model.sensor_id
+    weight_col = model.weight if is_synth else model.current_weight
+    time_col = model.timestamp
 
-    usage_calc = (func.max(Sensor_unit.current_weight) - func.min(Sensor_unit.current_weight)).label("usage")
-    query = select(time_label, usage_calc).where(Sensor_unit.sensor_id == device_id)
+    if granularity == "daily":
+        time_label = func.date(time_col).label("period")
+    elif granularity == "monthly":
+        time_label = func.extract('month', time_col).label("period")
+    else: # yearly
+        time_label = func.extract('year', time_col).label("period")
+
+    usage_calc = (func.max(weight_col) - func.min(weight_col)).label("usage")
+    query = select(time_label, usage_calc).where(id_col == device_id)
     if year:
-        query = query.where(func.extract('year', Sensor_unit.timestamp) == year)
+        query = query.where(func.extract('year', time_col) == year)
     if month and granularity == "daily":
-        query = query.where(func.extract('month', Sensor_unit.timestamp) == month)
+        query = query.where(func.extract('month', time_col) == month)
 
     query = query.group_by(time_label).order_by(time_label)
     result = await db.execute(query)
