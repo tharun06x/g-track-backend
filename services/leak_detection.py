@@ -82,7 +82,7 @@ async def get_cylinder_remaining_weight(
         select(Sensor_unit)
         .where(Sensor_unit.sensor_id == sensor_id)
         .order_by(Sensor_unit.timestamp.desc())
-        .limit(2)
+        .limit(1)
         .offset(1)
     )
     previous_result = await db.execute(previous_query)
