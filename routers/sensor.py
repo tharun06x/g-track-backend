@@ -112,11 +112,17 @@ async def ingest_sensor_reading(
         )
         user = user_result.scalar_one_or_none()
         
-        if user and payload.weight is not None:
-            # Convert weight percentage to 0-100 scale for threshold comparison
-            gas_percentage = payload.weight  # Assuming weight is already in percentage
+        if user and payload.weight is not None and user.gas > 0:
+            # Convert weight (kg) to percentage (0-100 scale) using user's max gas capacity
+            gas_percentage = (payload.weight / user.gas) * 100
             
-            if gas_percentage <= user.threshold_limit:
+            # Check if we crossed the threshold just now to prevent spamming
+            was_above_threshold = True
+            if previous and previous.current_weight is not None:
+                prev_percentage = (previous.current_weight / user.gas) * 100
+                was_above_threshold = prev_percentage > user.threshold_limit
+            
+            if gas_percentage <= user.threshold_limit and was_above_threshold:
                 # Send threshold alert email
                 email_sent = await EmailHelper.send_refill_reminder(
                     email=user.email,
