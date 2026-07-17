@@ -1,35 +1,51 @@
-from pydantic import BaseModel,EmailStr,Field
+"""
+schemas.py — Pydantic request/response schemas for G-Track.
+
+Issues fixed:
+  - Issue 14: Fixed `max_lenght` typo (x2) → `max_length`. Without this fix,
+              Pydantic silently ignores the misspelled kwarg, leaving passwords
+              with no upper-length cap — a DoS vector via Argon2 hashing.
+              Password max raised to 128 chars (20 is too restrictive for
+              strong passwords; Argon2 performance stays safe up to ~128 chars).
+"""
+
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
+
 class Usermain(BaseModel):
-    email:EmailStr=Field(max_length=120)
-    password:str=Field(min_length=8,max_lenght=20)
+    email: EmailStr = Field(max_length=120)
+    password: str = Field(min_length=8, max_length=128)   # Fix: was max_lenght=20 (typo)
+
 
 class UserCreate(Usermain):
-    name:str=Field(min_length=1,max_length=50)
-    consumer_number:str
-    mobile: str=Field(pattern=r"^\+?[1-9]\d{7,14}$")
-    address:str=Field(min_length=10,max_length=120)
-    state:str
-    district:str
+    name: str = Field(min_length=1, max_length=50)
+    consumer_number: str
+    mobile: str = Field(pattern=r"^\+?[1-9]\d{7,14}$")
+    address: str = Field(min_length=10, max_length=120)
+    state: str
+    district: str
     device_id: str | None = Field(default=None, max_length=30)
-    distributor:str
-    retrypassword:str
+    distributor: str
+    retrypassword: str
+
 
 class UserLogin(Usermain):
     pass
 
+
 class UserUpdate(BaseModel):
-    name:str|None=Field(default=None,min_length=1,max_length=50)
-    email:EmailStr|None=Field(max_length=120)
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    email: EmailStr | None = Field(default=None, max_length=120)
     device_id: str | None = Field(default=None, max_length=30)
+
 
 class AdminBase(BaseModel):
     email: EmailStr = Field(max_length=120)
 
 
 class AdminLogin(AdminBase):
-    password: str = Field(min_length=8, max_length=20)
+    password: str = Field(min_length=8, max_length=128)   # Fix: was max_length=20
 
 
 class AdminRegister(AdminLogin):
@@ -37,9 +53,10 @@ class AdminRegister(AdminLogin):
     name: str = Field(min_length=1, max_length=30)
     phone_no: str | None = Field(default=None, max_length=15)
 
+
 class DistributorRegister(BaseModel):
     email: EmailStr = Field(max_length=120)
-    password: str = Field(min_length=8, max_length=20)
+    password: str = Field(min_length=8, max_length=128)   # Fix: was max_length=20
     name: str = Field(min_length=1, max_length=50)
     phone_no: str = Field(pattern=r"^\+?[1-9]\d{7,14}$")
     address: str = Field(min_length=10, max_length=120)
@@ -47,13 +64,15 @@ class DistributorRegister(BaseModel):
     district: str
     retry_password: str
 
+
 class DistributorLogin(BaseModel):
     email: EmailStr = Field(max_length=120)
-    password: str = Field(min_length=8, max_length=20)
+    password: str = Field(min_length=8, max_length=128)
+
 
 class Distributor(BaseModel):
-    distributor_id:str=Field(max_length=20)
-    password:str=Field(min_length=8,max_lenght=20)
+    distributor_id: str = Field(max_length=20)
+    password: str = Field(min_length=8, max_length=128)   # Fix: was max_lenght=20 (typo)
 
 
 class DistributorRequestCreate(BaseModel):
@@ -83,4 +102,4 @@ class DistributorRequestReview(BaseModel):
     """Schema for admin to approve/reject distributor requests."""
     status: str = Field(pattern="^(approved|rejected)$")
     review_comment: str | None = Field(default=None, max_length=200)
-    password: str | None = Field(default=None, min_length=8, max_length=20)  # Password for approved requests
+    password: str | None = Field(default=None, min_length=8, max_length=128)   # for approved requests

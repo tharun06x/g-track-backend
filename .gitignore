@@ -1,12 +1,38 @@
-.txt
-.env
-__pychache__/
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-docs/
-*.md
-website/
-test/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database files (never commit SQLite DBs to git)
 *.db
-website2/
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

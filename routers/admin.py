@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, UTC
 
-from auth import create_access_token, hash_password, verify_password
+from auth import create_access_token, hash_password, verify_password, require_role, get_current_user, TokenPayload
 from database import get_db
 from models import Admin, DistributorRequest, Distributor
 from schemas import AdminLogin, AdminRegister, DistributorRequestCreate, DistributorRequestResponse, DistributorRequestReview
@@ -181,6 +181,8 @@ async def submit_distributor_request(
 
 @router.get("/distributor-requests/pending")
 async def get_pending_distributor_requests(
+    # Issue 4b fix: this is an admin-only endpoint — was unauthenticated
+    current_user: Annotated[TokenPayload, Depends(require_role("admin"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
@@ -216,6 +218,8 @@ async def get_pending_distributor_requests(
 async def review_distributor_request(
     request_id: str,
     review: DistributorRequestReview,
+    # Issue 4b fix: admin-only action — was unauthenticated
+    current_user: Annotated[TokenPayload, Depends(require_role("admin"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """

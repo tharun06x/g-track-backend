@@ -3,7 +3,7 @@ import logging
 from typing import Annotated
 from datetime import datetime, UTC
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +38,7 @@ async def create_complaint(
     complaint: ComplaintCreate,
     current_user: Annotated[TokenPayload, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ):
     """
     Submit a new complaint as a consumer.
@@ -72,15 +73,14 @@ async def create_complaint(
     await db.commit()
     await db.refresh(new_complaint)
 
-    # Send complaint confirmation email
-    email_sent = await EmailHelper.send_complaint_confirmation(
+    # Issue 5 (complaints): enqueue email — does NOT block the API response
+    background_tasks.add_task(
+        EmailHelper.send_complaint_confirmation,
         email=complaint.consumer_email,
         name=complaint.consumer_name,
         complaint_id=complaint_id,
-        status="Open"
+        status="Open",
     )
-    if not email_sent:
-        logger.warning(f"Failed to send complaint confirmation email to {complaint.consumer_email}")
 
     return {
         "complaint_id": new_complaint.complaint_id,
@@ -165,6 +165,7 @@ async def update_complaint(
     complaint_id: str,
     update: ComplaintUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ):
     """
     Update complaint status and remark (typically by distributor/admin).
@@ -195,17 +196,16 @@ async def update_complaint(
     await db.commit()
     await db.refresh(complaint)
 
-    # Send status update email if consumer info is provided
+    # Issue 5 (complaints update): enqueue email — does NOT block the response
     if update.consumer_email and update.consumer_name:
-        email_sent = await EmailHelper.send_complaint_status_update(
+        background_tasks.add_task(
+            EmailHelper.send_complaint_status_update,
             email=update.consumer_email,
             name=update.consumer_name,
             complaint_id=complaint_id,
             status=update.status,
-            remark=update.remark
+            remark=update.remark,
         )
-        if not email_sent:
-            logger.warning(f"Failed to send complaint status update email to {update.consumer_email}")
 
     return {
         "complaint_id": complaint.complaint_id,

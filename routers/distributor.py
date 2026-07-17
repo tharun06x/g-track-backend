@@ -12,6 +12,7 @@ from auth import (
     get_current_user,
     hash_password,
     verify_password,
+    require_role,
 )
 from database import get_db
 from models import Distributor, Users
@@ -146,10 +147,12 @@ async def get_current_distributor_info(
 
 @router.get("")
 async def list_distributors(
+    # Issue 4c fix: was unauthenticated — exposes all distributor contact info
+    current_user: Annotated[TokenPayload, Depends(require_role("admin"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
-    List all distributors (Admin endpoint).
+    List all distributors (Admin only).
     """
     result = await db.execute(select(Distributor))
     distributors = result.scalars().all()
@@ -198,11 +201,16 @@ async def get_distributor(
 @router.get("/{distributor_id}/consumers")
 async def get_distributor_consumers(
     distributor_id: str,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get all consumers registered with a specific distributor.
+    Only accessible by the distributor themselves or an admin.
     """
+    if current_user.role not in ("admin",) and current_user.sub != distributor_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Not authorized")
     result = await db.execute(
         select(Users).where(Users.distributor_name == distributor_id)
     )

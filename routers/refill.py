@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from auth import TokenPayload, get_current_user
-from database import get_db
+from database import AsyncSessionLocal, get_db
 from datetime import datetime, UTC, timedelta
 from typing import Annotated, Optional
 from models import Refill_request, Users
@@ -73,7 +73,8 @@ async def approve_refill_request(
     request_id: str,
     distributor_id: str,
     action: str,  # "approved" or "rejected"
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ):
     if action not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail="Action must be 'approved' or 'rejected'")
@@ -96,29 +97,32 @@ async def approve_refill_request(
     await db.commit()
     await db.refresh(refill)
 
-    # Send email notification to user
-    user_result = await db.execute(
-        select(Users).where(Users.user_id == refill.user_id)
-    )
-    user = user_result.scalar_one_or_none()
-    
-    if user:
-        if action == "approved":
-            email_sent = await EmailHelper.send_refill_approval(
-                email=user.email,
-                name=user.name,
-                request_id=refill.request_id
-            )
-        else:  # rejected
-            email_sent = await EmailHelper.send_refill_rejection(
-                email=user.email,
-                name=user.name,
-                request_id=refill.request_id,
-                reason=""
-            )
-        
-        if not email_sent:
-            logger.warning(f"Failed to send refill {action} email to {user.email}")
+    # Issue 5 (refill): enqueue email — does NOT block the distributor response
+    async def _send_refill_email() -> None:
+        try:
+            async with AsyncSessionLocal() as bg_db:
+                user_result = await bg_db.execute(
+                    select(Users).where(Users.user_id == refill.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                if user:
+                    if action == "approved":
+                        await EmailHelper.send_refill_approval(
+                            email=user.email,
+                            name=user.name,
+                            request_id=refill.request_id,
+                        )
+                    else:
+                        await EmailHelper.send_refill_rejection(
+                            email=user.email,
+                            name=user.name,
+                            request_id=refill.request_id,
+                            reason="",
+                        )
+        except Exception:
+            logger.exception("Refill %s email failed for user %s", action, refill.user_id)
+
+    background_tasks.add_task(_send_refill_email)
 
     return {
         "request_id": refill.request_id,

@@ -137,10 +137,28 @@ def train_linear_regression_model(
     )
 
 
+# ---------------------------------------------------------------------------
+# Model singleton cache  (Issue 15 fix)
+# ---------------------------------------------------------------------------
+# Avoids a joblib.load() / disk I/O on every prediction request.
+# The model is re-loaded only when the .joblib file's mtime changes,
+# which happens after a retraining run.  Thread safety is acceptable here
+# because CPython's GIL prevents concurrent writes to the module globals.
+_MODEL_CACHE: LinearRegression | None = None
+_MODEL_MTIME: float = 0.0
+
+
 def load_trained_model(model_path: Path = MODEL_PATH) -> LinearRegression | None:
+    """Return the trained LinearRegression model, loading from disk only when
+    the file has changed since the last call."""
+    global _MODEL_CACHE, _MODEL_MTIME
     if not model_path.exists():
         return None
-    return load(model_path)
+    current_mtime = model_path.stat().st_mtime
+    if _MODEL_CACHE is None or current_mtime != _MODEL_MTIME:
+        _MODEL_CACHE = load(model_path)
+        _MODEL_MTIME = current_mtime
+    return _MODEL_CACHE
 
 
 def predict_days_remaining_ml(model: LinearRegression, features: dict[str, float]) -> float:
