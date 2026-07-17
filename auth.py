@@ -169,4 +169,4 @@ def require_role(*roles: str):
             )
         return current_user
 
-    return Depends(_dependency)
+    return _dependency
