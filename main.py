@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import close_db, init_db
-from routers import dashboard, refill, report, sensor, settings, users, distributor, admin, complaints
+from routers import dashboard, refill, report, sensor, settings, users, distributor, admin, complaints, ws
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -85,6 +85,9 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+# WebSocket router must be registered first so Starlette resolves WS
+# upgrade requests before the HTTP middleware chain intercepts them.
+app.include_router(ws.router)
 app.include_router(dashboard.router)
 app.include_router(distributor.router)
 app.include_router(admin.router)
