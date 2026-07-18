@@ -1,14 +1,34 @@
 """
 routers/sensor.py — Sensor data ingestion endpoint for G-Track.
 
-Issues fixed:
-  - Issue 5:  Both email sends (leak alert + threshold alert) moved to
-              FastAPI BackgroundTasks. The ESP32 now gets an immediate response
-              while emails are sent after the HTTP response is flushed.
-              SMTP latency (0.5–3 s) no longer blocks the sensor hot path.
-  - Issue 11: Users table fetched only ONCE per request (was fetched twice).
-              The single user object is reused for both leak-alert email and
-              threshold-alert email, saving one DB round-trip per sensor POST.
+Issues fixed (original):
+  - Issue 5:  Both email sends moved to FastAPI BackgroundTasks.
+  - Issue 11: Users table fetched only ONCE per request.
+
+Architecture change (this revision):
+  - The DB SELECT query that previously ran on EVERY incoming IoT reading to
+    fetch the previous weight has been ELIMINATED.
+
+  - Instead, the previous state is read from services.state_manager (RAM).
+    This is a plain dictionary lookup — ~100 ns vs ~30 ms for a DB round-trip.
+
+  - DB fallback on cold cache: If the backend just restarted (Render spin-down),
+    the state_manager cache is empty. On the very first request for a device_id,
+    ONE DB SELECT is performed to warm the cache. All subsequent requests for
+    that device skip the DB entirely for the throttle check.
+
+  - After processing, the new weight is broadcast to connected WebSocket clients
+    via services.ws_manager — real-time frontend updates with zero DB queries.
+
+  - The DB INSERT is still throttled the same way (weight change < 20g AND
+    < 5 min elapsed = skip INSERT). This prevents the sensor_unit table from
+    ballooning. However, the WebSocket broadcast fires even for throttled
+    readings so the frontend always shows the latest live weight.
+
+DB connection budget analysis (Render free tier — pool_size=3, max_overflow=2):
+  Before: Every IoT reading = 1 SELECT + 1 INSERT = 2 connection checkouts
+  After:  Cold start: 1 SELECT (warm-up) + 1 INSERT
+          Warm:       0 SELECT + 1 conditional INSERT (often 0 total)
 """
 
 from __future__ import annotations
@@ -18,7 +38,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
@@ -26,6 +46,8 @@ from database import AsyncSessionLocal, get_db
 from models import Sensor_unit, Users
 from services.leak_detection import LEAK_THRESHOLD, compute_drop_rate, fire_alert_immediately
 from services.email_helper import EmailHelper
+from services.state_manager import device_state, DeviceState
+from services.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +116,40 @@ async def _send_threshold_alert_email_bg(
 
 
 # ---------------------------------------------------------------------------
+# Cold-cache DB warm-up helper
+# ---------------------------------------------------------------------------
+
+async def _warm_cache_from_db(device_id: str, db: AsyncSession) -> DeviceState | None:
+    """
+    Fetch the latest DB row for *device_id* and populate the in-memory cache.
+
+    Called only once per device_id after a backend restart (cold cache).
+    All subsequent requests for this device skip this entirely.
+    """
+    from sqlalchemy import func
+    latest_query = (
+        select(Sensor_unit)
+        .where(Sensor_unit.sensor_id == device_id)
+        .where(Sensor_unit.timestamp <= func.now())
+        .order_by(Sensor_unit.timestamp.desc())
+        .limit(1)
+    )
+    result = await db.execute(latest_query)
+    row = result.scalar_one_or_none()
+
+    if row is None:
+        return None
+
+    return device_state.warm_from_db_row(
+        device_id=device_id,
+        current_weight=row.current_weight,
+        timestamp=row.timestamp,
+        user_id=row.user_id,
+        connection_status=row.connection_status,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Sensor ingestion endpoint
 # ---------------------------------------------------------------------------
 
@@ -103,39 +159,59 @@ async def ingest_sensor_reading(
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
 ):
-    """Ingest a single sensor reading from an ESP32 device.
+    """
+    Ingest a single sensor reading from an ESP32 device.
 
-    Design decisions:
-    - Always use server UTC time (ESP32 clocks drift and may send naive timestamps).
-    - Throttle: skip DB insert if weight changed < 20 g AND < 5 min has elapsed.
-      This prevents sensor_unit table from ballooning on idle cylinders.
-    - Leak detection and threshold emails are enqueued as background tasks so
-      the ESP32 receives an immediate 201 response regardless of SMTP latency.
-    - Users row is fetched only once and reused for both alert checks.
+    Hot-path flow:
+      1. Look up previous state from in-memory cache (NO DB read).
+      2. If cache is cold (backend just restarted), warm it from DB (ONE read).
+      3. Throttle check against cached state.
+      4. Broadcast new weight to WebSocket clients (even if DB insert is skipped).
+      5. Conditionally INSERT into DB if throttle check passes.
+      6. Update in-memory cache.
+      7. Run email alerts as BackgroundTasks (after HTTP response is sent).
     """
     reading_time = datetime.now(UTC)
 
-    # ── Fetch previous reading ──────────────────────────────────────────────
-    latest_query = (
-        select(Sensor_unit)
-        .where(Sensor_unit.sensor_id == payload.device_id)
-        .where(Sensor_unit.timestamp <= func.now())
-        .order_by(Sensor_unit.timestamp.desc())
-        .limit(1)
-    )
-    latest_result = await db.execute(latest_query)
-    previous = latest_result.scalar_one_or_none()
+    # ── Step 1: Resolve previous state from RAM ─────────────────────────────
+    previous: DeviceState | None = device_state.get(payload.device_id)
 
-    current_drop_rate = None
-    leak_detected = False
-    alert_id = None
+    # ── Step 2: Cold-cache warm-up (once per device per backend restart) ────
+    if previous is None:
+        logger.info(
+            "Cache cold for device=%s — warming from DB (one-time per restart)",
+            payload.device_id,
+        )
+        previous = await _warm_cache_from_db(payload.device_id, db)
 
-    # ── Throttle check & leak detection ────────────────────────────────────
+    # ── Step 3: Throttle check ───────────────────────────────────────────────
     if previous is not None:
         seconds_elapsed = (reading_time - previous.timestamp).total_seconds()
+        weight_delta = abs(payload.weight - previous.current_weight)
 
-        # Skip DB insert if weight is stable and within the throttle window.
-        if abs(payload.weight - previous.current_weight) < 0.02 and seconds_elapsed < 300:
+        # Always broadcast to WebSocket clients (frontend sees live weight)
+        # even when the DB insert is throttled.
+        if weight_delta < 0.02 and seconds_elapsed < 300:
+            # Update RAM cache so the next throttle check uses the freshest weight
+            device_state.update(
+                device_id=payload.device_id,
+                current_weight=payload.weight,
+                timestamp=reading_time,
+                user_id=payload.user_id,
+                connection_status=payload.connection_status,
+            )
+            # Broadcast to WebSocket clients — zero DB queries
+            await ws_manager.broadcast(
+                payload.device_id,
+                {
+                    "event": "reading",
+                    "device_id": payload.device_id,
+                    "current_weight": payload.weight,
+                    "timestamp": reading_time.isoformat(),
+                    "leak_detected": False,
+                    "drop_rate_kg_per_sec": 0.0,
+                },
+            )
             return {
                 "device_id": payload.device_id,
                 "saved_at": previous.timestamp,
@@ -144,9 +220,16 @@ async def ingest_sensor_reading(
                 "drop_rate_kg_per_sec": 0,
                 "leak_threshold_kg_per_sec": LEAK_THRESHOLD,
                 "alert_id": None,
-                "note": "Skipped DB insert (weight stable)",
+                "note": "Skipped DB insert (weight stable) — WebSocket broadcast sent",
             }
 
+    # ── Step 4: Leak detection ───────────────────────────────────────────────
+    current_drop_rate = None
+    leak_detected = False
+    alert_id = None
+
+    if previous is not None:
+        seconds_elapsed = (reading_time - previous.timestamp).total_seconds()
         current_drop_rate = compute_drop_rate(
             previous_weight=previous.current_weight,
             current_weight=payload.weight,
@@ -161,7 +244,6 @@ async def ingest_sensor_reading(
                 drop_rate=current_drop_rate,
                 threshold=LEAK_THRESHOLD,
             )
-            # Issue 5 fix: enqueue email — does NOT block ESP32 response
             if alert_id and previous.user_id:
                 background_tasks.add_task(
                     _send_leak_alert_email_bg,
@@ -169,7 +251,7 @@ async def ingest_sensor_reading(
                     drop_rate=current_drop_rate,
                 )
 
-    # ── Resolve user_id ─────────────────────────────────────────────────────
+    # ── Step 5: Resolve user_id ──────────────────────────────────────────────
     user_id = payload.user_id
     if user_id is None and previous is None:
         raise HTTPException(
@@ -179,7 +261,7 @@ async def ingest_sensor_reading(
     elif user_id is None and previous is not None:
         user_id = previous.user_id
 
-    # ── Persist new reading ─────────────────────────────────────────────────
+    # ── Step 6: Persist new reading to DB ────────────────────────────────────
     reading = Sensor_unit(
         sensor_id=payload.device_id,
         current_weight=payload.weight,
@@ -191,9 +273,8 @@ async def ingest_sensor_reading(
     await db.commit()
     await db.refresh(reading)
 
-    # ── Threshold alert check ───────────────────────────────────────────────
-    # Issue 11 fix: fetch Users ONCE, re-use for both leak and threshold checks.
-    # We only need user data if there is a user_id at this point.
+    # ── Step 7: Threshold alert check ────────────────────────────────────────
+    # Fetch Users ONCE (Issue 11) — only if a user_id is known.
     if reading.user_id:
         user_result = await db.execute(
             select(Users).where(Users.user_id == reading.user_id)
@@ -203,21 +284,40 @@ async def ingest_sensor_reading(
         if user and user.gas > 0:
             gas_percentage = (payload.weight / user.gas) * 100
 
-            # Only fire the threshold alert when we cross the boundary downward,
-            # not on every reading below threshold (prevents email spam).
             was_above_threshold = True
             if previous and previous.current_weight is not None:
                 prev_percentage = (previous.current_weight / user.gas) * 100
                 was_above_threshold = prev_percentage > user.threshold_limit
 
             if gas_percentage <= user.threshold_limit and was_above_threshold:
-                # Issue 5 fix: enqueue email — does NOT block ESP32 response
                 background_tasks.add_task(
                     _send_threshold_alert_email_bg,
                     user_id=reading.user_id,
                     gas_percentage=gas_percentage,
                     threshold=user.threshold_limit,
                 )
+
+    # ── Step 8: Update in-memory cache ───────────────────────────────────────
+    device_state.update(
+        device_id=payload.device_id,
+        current_weight=reading.current_weight,
+        timestamp=reading.timestamp,
+        user_id=reading.user_id,
+        connection_status=reading.connection_status,
+    )
+
+    # ── Step 9: Broadcast to WebSocket clients ───────────────────────────────
+    await ws_manager.broadcast(
+        payload.device_id,
+        {
+            "event": "reading",
+            "device_id": payload.device_id,
+            "current_weight": reading.current_weight,
+            "timestamp": reading.timestamp.isoformat(),
+            "leak_detected": leak_detected,
+            "drop_rate_kg_per_sec": current_drop_rate,
+        },
+    )
 
     return {
         "device_id": payload.device_id,
