@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="color: #4CAF50; margin-bottom: 20px;">✓ Refill Request Approved!</h1>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Hi <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Great news! Your gas refill request has been approved by your distributor.
+</p>
+
+<div style="background-color: #e8f5e9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
+    <p style="margin: 0; color: #333;">
+        <strong>Request ID:</strong> {{ request_id }}<br>
+        <strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">APPROVED</span><br>
+        <strong>Next Step:</strong> Your distributor will contact you with delivery details
+    </p>
+</div>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    The distributor will reach out with the delivery schedule. Please keep your contact information up to date in your G-Track account.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 14px; margin: 0;">
+    Thank you for using G-Track!
+</p>
+{% endblock %}

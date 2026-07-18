@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth import TokenPayload, get_current_user
 from database import get_db
 from models import Users, Complaint, Distributor
-from services.email_helper import EmailHelper
+from services.notification_service import INotificationService, get_notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ async def create_complaint(
     current_user: Annotated[TokenPayload, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
+    notifier: Annotated[INotificationService, Depends(get_notification_service)],
 ):
     """
     Submit a new complaint as a consumer.
@@ -75,7 +76,7 @@ async def create_complaint(
 
     # Issue 5 (complaints): enqueue email — does NOT block the API response
     background_tasks.add_task(
-        EmailHelper.send_complaint_confirmation,
+        notifier.send_complaint_confirmation,
         email=complaint.consumer_email,
         name=complaint.consumer_name,
         complaint_id=complaint_id,
@@ -166,6 +167,7 @@ async def update_complaint(
     update: ComplaintUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
+    notifier: Annotated[INotificationService, Depends(get_notification_service)],
 ):
     """
     Update complaint status and remark (typically by distributor/admin).
@@ -199,7 +201,7 @@ async def update_complaint(
     # Issue 5 (complaints update): enqueue email — does NOT block the response
     if update.consumer_email and update.consumer_name:
         background_tasks.add_task(
-            EmailHelper.send_complaint_status_update,
+            notifier.send_complaint_status_update,
             email=update.consumer_email,
             name=update.consumer_name,
             complaint_id=complaint_id,

@@ -16,3 +16,4 @@ email-validator
 asyncpg
 gunicorn
 numpy
+jinja2

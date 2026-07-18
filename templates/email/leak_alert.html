@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="color: #d32f2f; margin-bottom: 20px;">⚠️ GAS LEAK DETECTED!</h1>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Hi <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #d32f2f; font-size: 16px; line-height: 1.5; font-weight: bold;">
+    Our sensors have detected an unusually high gas consumption rate that may indicate a leak in your system!
+</p>
+
+<div style="background-color: #ffebee; padding: 15px; border-left: 4px solid #d32f2f; margin: 20px 0;">
+    <p style="margin: 0; color: #333;">
+        <strong>Current Drop Rate:</strong> {{ "%.6f"|format(drop_rate) }} kg/s<br>
+        <strong>Alert Threshold:</strong> {{ "%.6f"|format(threshold) }} kg/s<br>
+        <strong>Status:</strong> <span style="color: #d32f2f; font-weight: bold;">ABNORMAL</span>
+    </p>
+</div>
+
+<h3 style="color: #333; margin-top: 25px;">Immediate Actions Required:</h3>
+<ol style="color: #666; font-size: 16px; line-height: 1.8;">
+    <li>Check your gas cylinder and connections immediately</li>
+    <li>Look for any visible gas leaks or hissing sounds</li>
+    <li>If you find a leak, turn off the gas supply immediately</li>
+    <li>Contact your distributor or a technician for assistance</li>
+</ol>
+
+<p style="color: #d32f2f; font-size: 14px; font-weight: bold; margin-top: 20px;">
+    ⚠️ Do not ignore this alert. A gas leak is a serious safety hazard.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 14px; margin: 0;">
+    G-Track Safety System - Always prioritize your safety
+</p>
+{% endblock %}

@@ -15,8 +15,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment variables
 load_dotenv()
-from services.email_service import EmailService, EmailMessage, EmailConfig
-from services.email_helper import EmailHelper
+from services.email_service import SmtpEmailService, EmailConfig
+from services.email_interfaces import EmailMessage
+from services.notification_service import get_notification_service
 
 print("=" * 80)
 print("📧 G-TRACK EMAIL SERVICE TEST SUITE")
@@ -67,7 +68,7 @@ async def test_email_service_instance():
     print("-" * 80)
     
     try:
-        service = EmailService()
+        service = SmtpEmailService()
         
         if service.is_configured():
             print(f"✓ Email service is CONFIGURED and ready to send emails")
@@ -90,7 +91,7 @@ async def test_smtp_connection():
     print("\n[TEST 3] SMTP Connection Test")
     print("-" * 80)
     
-    service = EmailService()
+    service = SmtpEmailService()
     
     if not service.is_configured():
         print("⚠️ Email service not configured - skipping connection test")
@@ -144,7 +145,7 @@ async def test_send_email():
     print("\n[TEST 4] Send Test Email")
     print("-" * 80)
     
-    service = EmailService()
+    service = SmtpEmailService()
     
     if not service.is_configured():
         print("⚠️ Email service not configured - skipping send test")
@@ -208,9 +209,9 @@ async def test_welcome_email():
     print("\n[TEST 5] Welcome Email Template Test")
     print("-" * 80)
     
-    service = EmailService()
+    transport = SmtpEmailService()
     
-    if not service.is_configured():
+    if not transport.is_configured():
         print("⚠️ Email service not configured - skipping")
         return None
     
@@ -221,7 +222,8 @@ async def test_welcome_email():
     print(f"Sending welcome email template to: {test_email}")
     
     try:
-        result = await service.send_welcome_email(
+        notifier = get_notification_service()
+        result = await notifier.send_welcome_email(
             email=test_email,
             name="Test User",
             password="TempPassword123"
@@ -248,9 +250,9 @@ async def test_complaint_email():
     print("\n[TEST 6] Complaint Confirmation Template Test")
     print("-" * 80)
     
-    service = EmailService()
+    transport = SmtpEmailService()
     
-    if not service.is_configured():
+    if not transport.is_configured():
         print("⚠️ Email service not configured - skipping")
         return None
     
@@ -261,7 +263,8 @@ async def test_complaint_email():
     print(f"Sending complaint email template to: {test_email}")
     
     try:
-        result = await service.send_complaint_confirmation(
+        notifier = get_notification_service()
+        result = await notifier.send_complaint_confirmation(
             email=test_email,
             name="Test User",
             complaint_id="COMP-20240406-0001",
@@ -289,9 +292,9 @@ async def test_refill_email():
     print("\n[TEST 7] Refill Reminder Template Test")
     print("-" * 80)
     
-    service = EmailService()
+    transport = SmtpEmailService()
     
-    if not service.is_configured():
+    if not transport.is_configured():
         print("⚠️ Email service not configured - skipping")
         return None
     
@@ -302,7 +305,8 @@ async def test_refill_email():
     print(f"Sending refill reminder to: {test_email}")
     
     try:
-        result = await service.send_refill_reminder(
+        notifier = get_notification_service()
+        result = await notifier.send_refill_reminder(
             email=test_email,
             name="Test User",
             gas_level=15.5,
@@ -326,12 +330,13 @@ async def test_refill_email():
 # ============================================================================
 
 async def test_helper_functions():
-    """Test 8: Test EmailHelper convenience functions"""
-    print("\n[TEST 8] EmailHelper Functions Test")
+    """Test 8: Test NotificationService convenience functions"""
+    print("\n[TEST 8] NotificationService Functions Test")
     print("-" * 80)
     
     # Check if enabled
-    enabled = EmailHelper.is_email_enabled()
+    transport = SmtpEmailService()
+    enabled = transport.is_configured()
     print(f"Email service enabled: {enabled}")
     
     if not enabled:
@@ -343,19 +348,20 @@ async def test_helper_functions():
         return None
     
     try:
+        notifier = get_notification_service()
         # Test send_custom_email
-        result = await EmailHelper.send_custom_email(
+        result = await notifier.send_custom_email(
             to_email=test_email,
             subject="Custom Helper Email Test",
-            html_content="<h2>Helper Function Test</h2><p>This email was sent using EmailHelper.send_custom_email()</p>",
+            html_content="<h2>Helper Function Test</h2><p>This email was sent using NotificationService.send_custom_email()</p>",
             plain_text_content="Helper Function Test"
         )
         
         if result:
-            print(f"✓ EmailHelper.send_custom_email() works")
+            print(f"✓ NotificationService.send_custom_email() works")
             return True
         else:
-            print(f"✗ EmailHelper.send_custom_email() failed")
+            print(f"✗ NotificationService.send_custom_email() failed")
             return False
     
     except Exception as e:

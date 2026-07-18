@@ -33,7 +33,7 @@ from auth import (
 from database import get_db
 from models import Distributor, Users
 from schemas import UserCreate
-from services.email_helper import EmailHelper
+from services.notification_service import INotificationService, get_notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,7 @@ class UserUpdate(BaseModel):
 async def register_user(
     payload: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    notifier: Annotated[INotificationService, Depends(get_notification_service)],
 ):
     if payload.password != payload.retrypassword:
         raise HTTPException(status_code=400, detail="Passwords do not match")
@@ -113,7 +114,7 @@ async def register_user(
 
     # Fire-and-forget welcome email — we don't block registration on SMTP
     try:
-        await EmailHelper.send_welcome_email(email=user.email, name=user.name)
+        await notifier.send_welcome_email(email=user.email, name=user.name)
     except Exception:
         logger.warning("Failed to send welcome email to %s", user.email)
 

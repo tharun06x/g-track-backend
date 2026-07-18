@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #2c3e50; margin: 0; font-size: 28px;">Welcome to G-Track! 🚀</h1>
+</div>
+
+<p style="color: #666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+    Hello <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+    Thank you for joining <strong>G-Track</strong> - your intelligent gas cylinder management and tracking solution! We're excited to have you on board.
+</p>
+
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; margin: 25px 0; color: white;">
+    <h2 style="margin: 0 0 15px 0; font-size: 18px;">What You Can Do With G-Track:</h2>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+        <li><strong>Real-Time Monitoring:</strong> Track your gas cylinder consumption in real-time</li>
+        <li><strong>Smart Alerts:</strong> Get instant notifications about usage patterns and potential issues</li>
+        <li><strong>Leak Detection:</strong> Advanced sensors detect anomalies and gas leaks automatically</li>
+        <li><strong>Easy Refills:</strong> Request refills with a single click through our platform</li>
+        <li><strong>Predictive Analytics:</strong> Know when you'll run out of gas and plan ahead</li>
+    </ul>
+</div>
+
+<h3 style="color: #2c3e50; margin: 25px 0 15px 0;">Getting Started:</h3>
+<ol style="color: #666; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+    <li style="margin-bottom: 12px;">Log in to your G-Track account with the credentials you registered</li>
+    <li style="margin-bottom: 12px;">Complete your profile with your gas distribution details</li>
+    <li style="margin-bottom: 12px;">Set your gas consumption threshold for smart alerts</li>
+    <li style="margin-bottom: 12px;">Connect your IoT sensor device to start monitoring</li>
+</ol>
+
+<div style="background-color: #e3f2fd; padding: 15px; border-left: 4px solid #2196F3; margin: 25px 0;">
+    <p style="margin: 0; color: #1565c0; font-size: 14px;">
+        <strong>💡 Pro Tip:</strong> Set up your notification preferences to receive real-time updates about your gas usage, refill reminders, and safety alerts.
+    </p>
+</div>
+
+<p style="color: #666; font-size: 15px; line-height: 1.6; margin: 25px 0 0 0;">
+    Our support team is here to help! If you have any questions or need assistance, feel free to reach out to us anytime.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 12px; margin: 5px 0;">
+    Making gas tracking smarter, safer, and easier.
+</p>
+{% endblock %}

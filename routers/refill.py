@@ -6,7 +6,7 @@ from database import AsyncSessionLocal, get_db
 from datetime import datetime, UTC, timedelta
 from typing import Annotated, Optional
 from models import Refill_request, Users
-from services.email_helper import EmailHelper
+from services.notification_service import INotificationService, get_notification_service
 import uuid
 import logging
 
@@ -75,6 +75,7 @@ async def approve_refill_request(
     action: str,  # "approved" or "rejected"
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
+    notifier: Annotated[INotificationService, Depends(get_notification_service)],
 ):
     if action not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail="Action must be 'approved' or 'rejected'")
@@ -107,13 +108,13 @@ async def approve_refill_request(
                 user = user_result.scalar_one_or_none()
                 if user:
                     if action == "approved":
-                        await EmailHelper.send_refill_approval(
+                        await notifier.send_refill_approval(
                             email=user.email,
                             name=user.name,
                             request_id=refill.request_id,
                         )
                     else:
-                        await EmailHelper.send_refill_rejection(
+                        await notifier.send_refill_rejection(
                             email=user.email,
                             name=user.name,
                             request_id=refill.request_id,

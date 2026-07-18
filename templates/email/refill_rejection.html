@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="color: #ff9800; margin-bottom: 20px;">Refill Request Status</h1>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Hi <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Unfortunately, your gas refill request has been rejected by your distributor. Please view the details below:
+</p>
+
+<div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+    <p style="margin: 0; color: #333;">
+        <strong>Request ID:</strong> {{ request_id }}<br>
+        <strong>Status:</strong> <span style="color: #ff9800; font-weight: bold;">REJECTED</span>
+        {% if reason %}
+        <br><strong>Reason:</strong> {{ reason }}
+        {% endif %}
+    </p>
+</div>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Please contact your distributor for more information or you can submit a new refill request.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 14px; margin: 0;">
+    For assistance, contact your distributor.
+</p>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="color: #ff9800; margin-bottom: 20px;">Gas Level Low ⚠️</h1>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Hi <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Your gas level is running low and approaching your threshold limit.
+</p>
+
+<div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+    <p style="margin: 0; color: #333;">
+        <strong>Current Gas Level:</strong> {{ "%.1f"|format(gas_level) }}%<br>
+        <strong>Threshold Limit:</strong> {{ "%.1f"|format(threshold) }}%
+    </p>
+</div>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Consider ordering a refill soon to ensure uninterrupted service. You can request a refill through your G-Track dashboard.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 14px; margin: 0;">
+    Stay connected with G-Track!
+</p>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="color: #333; margin-bottom: 20px;">Complaint Received ✓</h1>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    Hi <strong>{{ name }}</strong>,
+</p>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    We have successfully received your complaint. Our team will review it and get back to you soon.
+</p>
+
+<div style="background-color: #e8f5e9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
+    <p style="margin: 0; color: #333;">
+        <strong>Complaint ID:</strong> {{ complaint_id }}<br>
+        <strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">{{ status|upper }}</span>
+    </p>
+</div>
+
+<p style="color: #666; font-size: 16px; line-height: 1.5;">
+    You can track the status of your complaint using the ID above in your account dashboard.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="color: #999; font-size: 14px; margin: 0;">
+    Thank you for choosing G-Track!
+</p>
+{% endblock %}

@@ -45,7 +45,7 @@ import logging
 from database import AsyncSessionLocal, get_db
 from models import Sensor_unit, Users
 from services.leak_detection import LEAK_THRESHOLD, compute_drop_rate, fire_alert_immediately
-from services.email_helper import EmailHelper
+from services.notification_service import INotificationService, get_notification_service
 from services.state_manager import device_state, DeviceState
 from services.ws_manager import ws_manager
 
@@ -73,6 +73,7 @@ class SensorReadingIn(BaseModel):
 async def _send_leak_alert_email_bg(
     user_id: str,
     drop_rate: float,
+    notifier: INotificationService,
 ) -> None:
     """Background task: send leak detection email outside the request lifecycle."""
     try:
@@ -80,7 +81,7 @@ async def _send_leak_alert_email_bg(
             result = await db.execute(select(Users).where(Users.user_id == user_id))
             user = result.scalar_one_or_none()
             if user:
-                sent = await EmailHelper.send_leak_detection_alert(
+                sent = await notifier.send_leak_detection_alert(
                     email=user.email,
                     name=user.name,
                     drop_rate=drop_rate,
@@ -96,6 +97,7 @@ async def _send_threshold_alert_email_bg(
     user_id: str,
     gas_percentage: float,
     threshold: float,
+    notifier: INotificationService,
 ) -> None:
     """Background task: send low-gas threshold email outside the request lifecycle."""
     try:
@@ -103,7 +105,7 @@ async def _send_threshold_alert_email_bg(
             result = await db.execute(select(Users).where(Users.user_id == user_id))
             user = result.scalar_one_or_none()
             if user:
-                sent = await EmailHelper.send_refill_reminder(
+                sent = await notifier.send_refill_reminder(
                     email=user.email,
                     name=user.name,
                     gas_level=gas_percentage,
@@ -158,6 +160,7 @@ async def ingest_sensor_reading(
     payload: SensorReadingIn,
     db: Annotated[AsyncSession, Depends(get_db)],
     background_tasks: BackgroundTasks,
+    notifier: Annotated[INotificationService, Depends(get_notification_service)],
 ):
     """
     Ingest a single sensor reading from an ESP32 device.
@@ -249,6 +252,7 @@ async def ingest_sensor_reading(
                     _send_leak_alert_email_bg,
                     user_id=previous.user_id,
                     drop_rate=current_drop_rate,
+                    notifier=notifier,
                 )
 
     # ── Step 5: Resolve user_id ──────────────────────────────────────────────
@@ -295,6 +299,7 @@ async def ingest_sensor_reading(
                     user_id=reading.user_id,
                     gas_percentage=gas_percentage,
                     threshold=user.threshold_limit,
+                    notifier=notifier,
                 )
 
     # ── Step 8: Update in-memory cache ───────────────────────────────────────
